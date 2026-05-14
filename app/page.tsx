@@ -156,23 +156,34 @@ function getVSpreadLabelPosition(positionNo: number) {
   return map[positionNo];
 }
 
+function getHorseshoeLabelPosition(positionNo: number) {
+  const map: Record<number, { x: number; y: number }> = {
+    1: { x: 14, y: 39 },
+    2: { x: 14, y: 68 },
+    3: { x: 32, y: 82 },
+    4: { x: 50, y: 92 },
+    5: { x: 68, y: 82 },
+    6: { x: 86, y: 68 },
+    7: { x: 86, y: 39 },
+  };
+
+  return map[positionNo];
+}
+
 function getTreeOfLifeLabelPosition(positionNo: number) {
   const map: Record<number, { x: number; y: number }> = {
-    // 中央縦列：左寄せでカード間へ
-    1: { x: 41, y: 14 },
-    6: { x: 41, y: 51 },
-    9: { x: 41, y: 73 },
-    10: { x: 41, y: 89 },
+    1: { x: 60, y: 14 },
+    6: { x: 60, y: 42 },
+    9: { x: 60, y: 66 },
+    10: { x: 60, y: 88 },
 
-    // 右列：外側
-    2: { x: 88, y: 24 },
-    4: { x: 88, y: 43 },
-    7: { x: 88, y: 64 },
+    3: { x: 18, y: 24 },
+    5: { x: 18, y: 46 },
+    8: { x: 18, y: 68 },
 
-    // 左列：外側
-    3: { x: 12, y: 24 },
-    5: { x: 12, y: 43 },
-    8: { x: 12, y: 64 },
+    2: { x: 82, y: 24 },
+    4: { x: 82, y: 46 },
+    7: { x: 82, y: 68 },
   };
 
   return map[positionNo];
@@ -180,27 +191,22 @@ function getTreeOfLifeLabelPosition(positionNo: number) {
 
 function getHoroscopeLabelPosition(positionNo: number) {
   const map: Record<number, { x: number; y: number }> = {
-    // 左外側はラベル内側寄せ
-    1: { x: 24, y: 50 },
-    2: { x: 34, y: 60 },
-    12: { x: 34, y: 40 },
+    1: { x: 12, y: 64 },
+    2: { x: 26, y: 74 },
+    6: { x: 74, y: 74 },
+    7: { x: 88, y: 64 },
 
-    // 下側3枚はカード上
+    8: { x: 74, y: 26 },
+    12: { x: 26, y: 26 },
+
     3: { x: 38, y: 61 },
     4: { x: 50, y: 70 },
     5: { x: 62, y: 61 },
-
-    // 右外側はラベル内側寄せ
-    6: { x: 66, y: 60 },
-    7: { x: 76, y: 50 },
-    8: { x: 66, y: 40 },
-
     9: { x: 62, y: 39 },
     10: { x: 50, y: 30 },
     11: { x: 38, y: 39 },
 
-    // 中央13枚目はカード下
-    13: { x: 50, y: 64 },
+    13: { x: 60, y: 50 },
   };
 
   return map[positionNo];
@@ -209,10 +215,10 @@ function getHoroscopeLabelPosition(positionNo: number) {
 function getStarOfDavidLabelPosition(positionNo: number) {
   const map: Record<number, { x: number; y: number }> = {
     1: { x: 50, y: 34 },
-    2: { x: 11, y: 36 },
-    3: { x: 11, y: 66 },
-    4: { x: 89, y: 66 },
-    5: { x: 89, y: 36 },
+    2: { x: 16, y: 36 },
+    3: { x: 16, y: 66 },
+    4: { x: 84, y: 66 },
+    5: { x: 84, y: 36 },
     6: { x: 50, y: 94 },
   };
 
@@ -247,11 +253,7 @@ function getLabelTranslateClass(spreadKey: string, positionNo: number) {
     return "translate-x-0";
   }
 
-  if (spreadKey === "horoscope" && [1, 2, 12].includes(positionNo)) {
-    return "-translate-x-full";
-  }
-
-  if (spreadKey === "horoscope" && [6, 7, 8].includes(positionNo)) {
+  if (spreadKey === "horoscope" && positionNo === 13) {
     return "translate-x-0";
   }
 
@@ -488,7 +490,8 @@ function HomeContent() {
 
         <section className="rounded-2xl bg-white p-4 shadow">
           <h2 className="mb-4 text-xl font-bold">
-            {selectedSpread?.spread_name ?? "スプレッド"}
+            {spreads.find((s) => s.spread_key === selectedSpreadKey)
+              ?.spread_name ?? "スプレッド"}
           </h2>
 
           <div className="relative mx-auto h-[980px] w-full max-w-[1320px] overflow-visible rounded-2xl border bg-[#fffdf6]">
@@ -517,6 +520,10 @@ function HomeContent() {
 
               if (selectedSpreadKey === "v_spread") {
                 labelPos = getVSpreadLabelPosition(pos.position_no);
+              }
+
+              if (selectedSpreadKey === "horseshoe") {
+                labelPos = getHorseshoeLabelPosition(pos.position_no);
               }
 
               if (selectedSpreadKey === "tree_of_life") {
