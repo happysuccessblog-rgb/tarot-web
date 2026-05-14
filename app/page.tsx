@@ -392,7 +392,15 @@ function HomeContent() {
       const spreadFromUrl = searchParams.get("spread");
       const cardsFromUrl = searchParams.get("cards");
 
-      if (!spreadFromUrl || !cardsFromUrl) return;
+      if (!spreadFromUrl) return;
+
+      setSelectedSpreadKey(spreadFromUrl);
+
+     if (!cardsFromUrl) {
+       setDrawnCards([]);
+       setAutoLoaded(true);
+       return;
+     }
 
       const decodedCards = decodeURIComponent(cardsFromUrl);
 
