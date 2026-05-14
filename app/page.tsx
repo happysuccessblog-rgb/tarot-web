@@ -422,9 +422,9 @@ function HomeContent() {
     <main className="min-h-screen bg-[#fdf7db] p-6 text-stone-800">
       <div className="mx-auto max-w-7xl space-y-6">
         <header>
-          <h1 className="text-3xl font-bold">タロットWEB表示テスト</h1>
+          <h1 className="text-3xl font-bold">タロット_スプレッド展開図</h1>
           <p className="mt-2 text-sm">
-            Supabaseのスプレッド座標とカード画像を使って、展開図を表示します。
+            選択したスプレッドに合わせて展開したカードの展開図を表示します。
           </p>
         </header>
 
