@@ -156,12 +156,106 @@ function getVSpreadLabelPosition(positionNo: number) {
   return map[positionNo];
 }
 
+function getTreeOfLifeLabelPosition(positionNo: number) {
+  const map: Record<number, { x: number; y: number }> = {
+    1: { x: 60, y: 10 },
+    6: { x: 60, y: 38 },
+    9: { x: 60, y: 64 },
+    10: { x: 60, y: 86 },
+
+    2: { x: 15, y: 25 },
+    4: { x: 15, y: 45 },
+    7: { x: 15, y: 66 },
+
+    3: { x: 85, y: 25 },
+    5: { x: 85, y: 45 },
+    8: { x: 85, y: 66 },
+  };
+
+  return map[positionNo];
+}
+
+function getHoroscopeLabelPosition(positionNo: number) {
+  const map: Record<number, { x: number; y: number }> = {
+    1: { x: 50, y: 25 },
+    2: { x: 68, y: 31 },
+    3: { x: 92, y: 32 },
+    4: { x: 94, y: 50 },
+    5: { x: 92, y: 68 },
+
+    6: { x: 68, y: 68 },
+    7: { x: 50, y: 74 },
+    8: { x: 32, y: 68 },
+
+    9: { x: 8, y: 68 },
+    10: { x: 6, y: 50 },
+    11: { x: 8, y: 32 },
+    12: { x: 32, y: 31 },
+    13: { x: 61, y: 50 },
+  };
+
+  return map[positionNo];
+}
+
+function getStarOfDavidLabelPosition(positionNo: number) {
+  const map: Record<number, { x: number; y: number }> = {
+    1: { x: 50, y: 34 },
+    2: { x: 86, y: 38 },
+    3: { x: 86, y: 64 },
+    4: { x: 50, y: 92 },
+    5: { x: 14, y: 64 },
+    6: { x: 14, y: 38 },
+    7: { x: 61, y: 50 },
+  };
+
+  return map[positionNo];
+}
+
 function adjustDisplayPosition(spreadKey: string, x: number, y: number) {
   if (spreadKey === "greek_cross") {
     return { x, y: Math.max(0, y - 4) };
   }
 
   return { x, y };
+}
+
+function getLabelTranslateClass(spreadKey: string, positionNo: number) {
+  if (spreadKey === "v_spread" && [2, 4, 6].includes(positionNo)) {
+    return "-translate-x-full";
+  }
+
+  if (spreadKey === "v_spread" && [3, 5, 7].includes(positionNo)) {
+    return "translate-x-0";
+  }
+
+  if (spreadKey === "tree_of_life" && [2, 4, 7].includes(positionNo)) {
+    return "-translate-x-full";
+  }
+
+  if (
+    spreadKey === "tree_of_life" &&
+    [1, 3, 5, 6, 8, 9, 10].includes(positionNo)
+  ) {
+    return "translate-x-0";
+  }
+
+  if (spreadKey === "horoscope" && [9, 10, 11].includes(positionNo)) {
+    return "-translate-x-full";
+  }
+
+  if (spreadKey === "horoscope" && [3, 4, 5, 13].includes(positionNo)) {
+    return "translate-x-0";
+  }
+
+  if (spreadKey === "star_of_david" && [5, 6].includes(positionNo)) {
+    return "-translate-x-full";
+  }
+
+  if (spreadKey === "star_of_david" && [2, 3, 7].includes(positionNo)) {
+    return "translate-x-0";
+  }
+
+  return "-translate-x-1/2";
 }
 
 function HomeContent() {
@@ -417,6 +511,18 @@ function HomeContent() {
                 labelPos = getVSpreadLabelPosition(pos.position_no);
               }
 
+              if (selectedSpreadKey === "tree_of_life") {
+                labelPos = getTreeOfLifeLabelPosition(pos.position_no);
+              }
+
+              if (selectedSpreadKey === "horoscope") {
+                labelPos = getHoroscopeLabelPosition(pos.position_no);
+              }
+
+              if (selectedSpreadKey === "star_of_david") {
+                labelPos = getStarOfDavidLabelPosition(pos.position_no);
+              }
+
               const adjustedLabelPos = labelPos
                 ? adjustDisplayPosition(
                     selectedSpreadKey,
@@ -460,15 +566,10 @@ function HomeContent() {
                   </div>
 
                   <div
-                    className={`absolute z-30 w-[142px] -translate-y-1/2 rounded-lg bg-white/95 px-2 py-1 text-center text-[11px] leading-tight shadow ${
-                       selectedSpreadKey === "v_spread" &&
-                        [2, 4, 6].includes(pos.position_no)
-                        ? "-translate-x-full"
-                        : selectedSpreadKey === "v_spread" &&
-                            [3, 5, 7].includes(pos.position_no)
-                          ? "translate-x-0"
-                          : "-translate-x-1/2"
-                    }`}
+                    className={`absolute z-30 w-[142px] -translate-y-1/2 rounded-lg bg-white/95 px-2 py-1 text-center text-[11px] leading-tight shadow ${getLabelTranslateClass(
+                      selectedSpreadKey,
+                      pos.position_no
+                    )}`}
                     style={{
                       left: `${labelX}%`,
                       top: `${labelY}%`,
