@@ -158,15 +158,18 @@ function getVSpreadLabelPosition(positionNo: number) {
 
 function getTreeOfLifeLabelPosition(positionNo: number) {
   const map: Record<number, { x: number; y: number }> = {
+    // 中央縦列：左寄せでカード間へ
     1: { x: 41, y: 14 },
     6: { x: 41, y: 51 },
     9: { x: 41, y: 73 },
     10: { x: 41, y: 89 },
 
+    // 右列：外側
     2: { x: 88, y: 24 },
     4: { x: 88, y: 43 },
     7: { x: 88, y: 64 },
 
+    // 左列：外側
     3: { x: 12, y: 24 },
     5: { x: 12, y: 43 },
     8: { x: 12, y: 64 },
@@ -177,13 +180,17 @@ function getTreeOfLifeLabelPosition(positionNo: number) {
 
 function getHoroscopeLabelPosition(positionNo: number) {
   const map: Record<number, { x: number; y: number }> = {
+    // 左外側はラベル内側寄せ
     1: { x: 24, y: 50 },
     2: { x: 34, y: 60 },
+    12: { x: 34, y: 40 },
 
+    // 下側3枚はカード上
     3: { x: 38, y: 61 },
     4: { x: 50, y: 70 },
     5: { x: 62, y: 61 },
 
+    // 右外側はラベル内側寄せ
     6: { x: 66, y: 60 },
     7: { x: 76, y: 50 },
     8: { x: 66, y: 40 },
@@ -192,7 +199,7 @@ function getHoroscopeLabelPosition(positionNo: number) {
     10: { x: 50, y: 30 },
     11: { x: 38, y: 39 },
 
-    12: { x: 34, y: 40 },
+    // 中央13枚目はカード下
     13: { x: 50, y: 64 },
   };
 
