@@ -158,18 +158,18 @@ function getVSpreadLabelPosition(positionNo: number) {
 
 function getTreeOfLifeLabelPosition(positionNo: number) {
   const map: Record<number, { x: number; y: number }> = {
-    1: { x: 60, y: 10 },
-    6: { x: 60, y: 38 },
-    9: { x: 60, y: 64 },
-    10: { x: 60, y: 86 },
+    1: { x: 41, y: 14 },
+    6: { x: 41, y: 51 },
+    9: { x: 41, y: 73 },
+    10: { x: 41, y: 89 },
 
-    2: { x: 15, y: 25 },
-    4: { x: 15, y: 45 },
-    7: { x: 15, y: 66 },
+    2: { x: 88, y: 24 },
+    4: { x: 88, y: 43 },
+    7: { x: 88, y: 64 },
 
-    3: { x: 85, y: 25 },
-    5: { x: 85, y: 45 },
-    8: { x: 85, y: 66 },
+    3: { x: 12, y: 24 },
+    5: { x: 12, y: 43 },
+    8: { x: 12, y: 64 },
   };
 
   return map[positionNo];
@@ -177,21 +177,23 @@ function getTreeOfLifeLabelPosition(positionNo: number) {
 
 function getHoroscopeLabelPosition(positionNo: number) {
   const map: Record<number, { x: number; y: number }> = {
-    1: { x: 50, y: 25 },
-    2: { x: 68, y: 31 },
-    3: { x: 92, y: 32 },
-    4: { x: 94, y: 50 },
-    5: { x: 92, y: 68 },
+    1: { x: 24, y: 50 },
+    2: { x: 34, y: 60 },
 
-    6: { x: 68, y: 68 },
-    7: { x: 50, y: 74 },
-    8: { x: 32, y: 68 },
+    3: { x: 38, y: 61 },
+    4: { x: 50, y: 70 },
+    5: { x: 62, y: 61 },
 
-    9: { x: 8, y: 68 },
-    10: { x: 6, y: 50 },
-    11: { x: 8, y: 32 },
-    12: { x: 32, y: 31 },
-    13: { x: 61, y: 50 },
+    6: { x: 66, y: 60 },
+    7: { x: 76, y: 50 },
+    8: { x: 66, y: 40 },
+
+    9: { x: 62, y: 39 },
+    10: { x: 50, y: 30 },
+    11: { x: 38, y: 39 },
+
+    12: { x: 34, y: 40 },
+    13: { x: 50, y: 64 },
   };
 
   return map[positionNo];
@@ -200,12 +202,11 @@ function getHoroscopeLabelPosition(positionNo: number) {
 function getStarOfDavidLabelPosition(positionNo: number) {
   const map: Record<number, { x: number; y: number }> = {
     1: { x: 50, y: 34 },
-    2: { x: 86, y: 38 },
-    3: { x: 86, y: 64 },
-    4: { x: 50, y: 92 },
-    5: { x: 14, y: 64 },
-    6: { x: 14, y: 38 },
-    7: { x: 61, y: 50 },
+    2: { x: 11, y: 36 },
+    3: { x: 11, y: 66 },
+    4: { x: 89, y: 66 },
+    5: { x: 89, y: 36 },
+    6: { x: 50, y: 94 },
   };
 
   return map[positionNo];
@@ -228,30 +229,30 @@ function getLabelTranslateClass(spreadKey: string, positionNo: number) {
     return "translate-x-0";
   }
 
-  if (spreadKey === "tree_of_life" && [2, 4, 7].includes(positionNo)) {
+  if (spreadKey === "tree_of_life" && [3, 5, 8].includes(positionNo)) {
     return "-translate-x-full";
   }
 
   if (
     spreadKey === "tree_of_life" &&
-    [1, 3, 5, 6, 8, 9, 10].includes(positionNo)
+    [1, 2, 4, 6, 7, 9, 10].includes(positionNo)
   ) {
     return "translate-x-0";
   }
 
-  if (spreadKey === "horoscope" && [9, 10, 11].includes(positionNo)) {
+  if (spreadKey === "horoscope" && [1, 2, 12].includes(positionNo)) {
     return "-translate-x-full";
   }
 
-  if (spreadKey === "horoscope" && [3, 4, 5, 13].includes(positionNo)) {
+  if (spreadKey === "horoscope" && [6, 7, 8].includes(positionNo)) {
     return "translate-x-0";
   }
 
-  if (spreadKey === "star_of_david" && [5, 6].includes(positionNo)) {
+  if (spreadKey === "star_of_david" && [2, 3].includes(positionNo)) {
     return "-translate-x-full";
   }
 
-  if (spreadKey === "star_of_david" && [2, 3, 7].includes(positionNo)) {
+  if (spreadKey === "star_of_david" && [4, 5].includes(positionNo)) {
     return "translate-x-0";
   }
 
