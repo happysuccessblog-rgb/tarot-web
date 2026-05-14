@@ -145,12 +145,12 @@ function getCelticLabelPosition(positionNo: number) {
 function getVSpreadLabelPosition(positionNo: number) {
   const map: Record<number, { x: number; y: number }> = {
     1: { x: 50, y: 96 },
-    2: { x: 28, y: 64 },
-    3: { x: 72, y: 64 },
-    4: { x: 15, y: 42 },
-    5: { x: 85, y: 42 },
-    6: { x: 8, y: 20 },
-    7: { x: 92, y: 20 },
+    2: { x: 23, y: 64 },
+    3: { x: 77, y: 64 },
+    4: { x: 10, y: 42 },
+    5: { x: 90, y: 42 },
+    6: { x: 3, y: 20 },
+    7: { x: 97, y: 20 },
   };
 
   return map[positionNo];
