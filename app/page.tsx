@@ -142,6 +142,28 @@ function getCelticLabelPosition(positionNo: number) {
   return map[positionNo];
 }
 
+function getVSpreadLabelPosition(positionNo: number) {
+  const map: Record<number, { x: number; y: number }> = {
+    1: { x: 50, y: 96 },
+    2: { x: 28, y: 64 },
+    3: { x: 72, y: 64 },
+    4: { x: 15, y: 42 },
+    5: { x: 85, y: 42 },
+    6: { x: 8, y: 20 },
+    7: { x: 92, y: 20 },
+  };
+
+  return map[positionNo];
+}
+
+function adjustDisplayPosition(spreadKey: string, x: number, y: number) {
+  if (spreadKey === "greek_cross") {
+    return { x, y: Math.max(0, y - 4) };
+  }
+
+  return { x, y };
+}
+
 function HomeContent() {
   const searchParams = useSearchParams();
 
@@ -373,20 +395,38 @@ function HomeContent() {
                 (c) => c.position_no === pos.position_no
               );
 
-              const x = pos.x_percent ?? 50;
-              const y = pos.y_percent ?? 50;
+              const rawX = pos.x_percent ?? 50;
+              const rawY = pos.y_percent ?? 50;
+              const { x, y } = adjustDisplayPosition(
+                selectedSpreadKey,
+                rawX,
+                rawY
+              );
 
               const baseRotation = pos.rotation_deg ?? 0;
               const reverseRotation = card?.orientation === "reversed" ? 180 : 0;
               const finalRotation = baseRotation + reverseRotation;
 
-              const labelPos =
-                selectedSpreadKey === "celtic_cross"
-                  ? getCelticLabelPosition(pos.position_no)
-                  : undefined;
+              let labelPos: { x: number; y: number } | undefined;
 
-              const labelX = labelPos?.x ?? x;
-              const labelY = labelPos?.y ?? y + 14;
+              if (selectedSpreadKey === "celtic_cross") {
+                labelPos = getCelticLabelPosition(pos.position_no);
+              }
+
+              if (selectedSpreadKey === "v_spread") {
+                labelPos = getVSpreadLabelPosition(pos.position_no);
+              }
+
+              const adjustedLabelPos = labelPos
+                ? adjustDisplayPosition(
+                    selectedSpreadKey,
+                    labelPos.x,
+                    labelPos.y
+                  )
+                : undefined;
+
+              const labelX = adjustedLabelPos?.x ?? x;
+              const labelY = adjustedLabelPos?.y ?? y + 14;
 
               return (
                 <div key={pos.position_no}>
