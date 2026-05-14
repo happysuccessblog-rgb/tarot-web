@@ -172,18 +172,18 @@ function getHorseshoeLabelPosition(positionNo: number) {
 
 function getTreeOfLifeLabelPosition(positionNo: number) {
   const map: Record<number, { x: number; y: number }> = {
-    1: { x: 60, y: 14 },
-    6: { x: 60, y: 42 },
-    9: { x: 60, y: 66 },
-    10: { x: 60, y: 88 },
+    1: { x: 56, y: 12 },
+    6: { x: 56, y: 38 },
+    9: { x: 56, y: 62 },
+    10: { x: 56, y: 86 },
 
-    3: { x: 18, y: 24 },
-    5: { x: 18, y: 46 },
-    8: { x: 18, y: 68 },
+    3: { x: 18, y: 22 },
+    5: { x: 18, y: 50 },
+    8: { x: 18, y: 78 },
 
-    2: { x: 82, y: 24 },
-    4: { x: 82, y: 46 },
-    7: { x: 82, y: 68 },
+    2: { x: 82, y: 22 },
+    4: { x: 82, y: 50 },
+    7: { x: 82, y: 78 },
   };
 
   return map[positionNo];
@@ -206,7 +206,7 @@ function getHoroscopeLabelPosition(positionNo: number) {
     10: { x: 50, y: 30 },
     11: { x: 38, y: 39 },
 
-    13: { x: 60, y: 50 },
+    13: { x: 62, y: 50 },
   };
 
   return map[positionNo];
