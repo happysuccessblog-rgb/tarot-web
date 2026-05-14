@@ -437,59 +437,97 @@ function HomeContent() {
         </header>
 
         <section className="rounded-2xl bg-white p-4 shadow">
-          <label className="block text-sm font-bold">スプレッド</label>
-          <select
-            className="mt-2 w-full rounded-lg border p-2"
-            value={selectedSpreadKey}
-            onChange={(e) => {
-              setSelectedSpreadKey(e.target.value);
-              setDrawnCards([]);
-              setError("");
-            }}
-          >
-            {spreads.map((spread) => (
-              <option key={spread.spread_key} value={spread.spread_key}>
-                {spread.spread_name}（{spread.card_count}枚）
-              </option>
-            ))}
-          </select>
+          <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
+            {/* 左側 */}
+            <div>
+              <label className="block text-sm font-bold">スプレッド</label>
 
-          <label className="mt-4 block text-sm font-bold">カードコード</label>
-          <textarea
-            className="mt-2 h-28 w-full rounded-lg border p-2"
-            value={cardCodesText}
-            onChange={(e) => setCardCodesText(e.target.value)}
-          />
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              onClick={handlePreview}
-              className="rounded-xl bg-stone-800 px-5 py-2 text-white"
-            >
-              展開表示
-            </button>
-
-            {drawnCards.length > 0 && (
-              <button
-                onClick={() => navigator.clipboard.writeText(shareUrl)}
-                className="rounded-xl border px-5 py-2"
+              <select
+                className="mt-2 w-full rounded-lg border p-2"
+                value={selectedSpreadKey}
+                onChange={(e) => {
+                  setSelectedSpreadKey(e.target.value);
+                  setDrawnCards([]);
+                  setError("");
+                }}
               >
-                展開URLをコピー
-              </button>
-            )}
+                {spreads.map((spread) => (
+                  <option key={spread.spread_key} value={spread.spread_key}>
+                    {spread.spread_name}（{spread.card_count}枚）
+                  </option>
+                ))}
+              </select>
+
+              <label className="mt-4 block text-sm font-bold">
+                カードコード
+              </label>
+
+               <textarea
+                className="mt-2 h-28 w-full rounded-lg border p-2"
+                value={cardCodesText}
+                onChange={(e) => setCardCodesText(e.target.value)}
+              />
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  onClick={handlePreview}
+                  className="rounded-xl bg-stone-800 px-5 py-2 text-white"
+                >
+                  展開表示
+                </button>
+
+                {drawnCards.length > 0 && (
+                  <button
+                    onClick={() => navigator.clipboard.writeText(shareUrl)}
+                    className="rounded-xl border px-5 py-2"
+                  >
+                    展開URLをコピー
+                   </button>
+                )}
+              </div>
+
+              {drawnCards.length > 0 && (
+                <p className="mt-3 break-all rounded-lg bg-stone-50 p-3 text-xs text-stone-600">
+                  {shareUrl}
+                </p>
+              )}
+
+              {error && (
+                <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                  {error}
+                </p>
+              )}
+            </div>
+
+            {/* 右側 */}
+            <div className="rounded-2xl border bg-stone-50 p-4 text-sm leading-7">
+              <h3 className="mb-3 text-lg font-bold">
+                【カードコードのルール】
+              </h3>
+
+              <div className="space-y-3">
+                <div>
+                  <div className="font-bold">1桁目：カード種別</div>
+                  <div>
+                    0：大アルカナ / 1：ワンド / 2：カップ /
+                    3：ソード / 4：ペンタクル
+                  </div>
+                </div>
+
+                <div>
+                  <div className="font-bold">2〜3桁目：番号</div>
+                  <div>
+                    （大アルカナ：00〜21 / 小アルカナ：01〜14）
+                  </div>
+                </div>
+
+                <div>
+                  <div className="font-bold">4桁目：正逆</div>
+                  <div>0：正位置 / 1：逆位置</div>
+                </div>
+              </div>
+            </div>
           </div>
-
-          {drawnCards.length > 0 && (
-            <p className="mt-3 break-all rounded-lg bg-stone-50 p-3 text-xs text-stone-600">
-              {shareUrl}
-            </p>
-          )}
-
-          {error && (
-            <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-              {error}
-            </p>
-          )}
         </section>
 
         <section className="rounded-2xl bg-white p-4 shadow">
