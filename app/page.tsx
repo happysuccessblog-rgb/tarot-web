@@ -253,10 +253,6 @@ function getLabelTranslateClass(spreadKey: string, positionNo: number) {
     return "translate-x-0";
   }
 
-  if (spreadKey === "horoscope" && positionNo === 13) {
-    return "translate-x-0";
-  }
-
   if (spreadKey === "star_of_david" && [2, 3].includes(positionNo)) {
     return "-translate-x-full";
   }
