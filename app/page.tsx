@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
 type Spread = {
@@ -126,19 +127,12 @@ function parseCardCode(code: string) {
 
 function getCelticLabelPosition(positionNo: number) {
   const map: Record<number, { x: number; y: number }> = {
-    // 1枚目・2枚目：中心縦軸を境に左右表示
     1: { x: 44.5, y: 59 },
     2: { x: 31.5, y: 59 },
-
-    // 3枚目・4枚目：カードから離して下側に表示
     3: { x: 38, y: 31 },
     4: { x: 38, y: 89 },
-
-    // 5枚目・6枚目：カード縦軸中心とラベル中心を一致
     5: { x: 18, y: 59 },
     6: { x: 58, y: 59 },
-
-    // 7〜10枚目：カード横軸中心とラベル中心を一致
     7: { x: 91, y: 82 },
     8: { x: 91, y: 60 },
     9: { x: 91, y: 38 },
@@ -148,7 +142,9 @@ function getCelticLabelPosition(positionNo: number) {
   return map[positionNo];
 }
 
-export default function Home() {
+function HomeContent() {
+  const searchParams = useSearchParams();
+
   const [spreads, setSpreads] = useState<Spread[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [selectedSpreadKey, setSelectedSpreadKey] = useState("celtic_cross");
@@ -157,6 +153,7 @@ export default function Home() {
   );
   const [drawnCards, setDrawnCards] = useState<DrawnCard[]>([]);
   const [error, setError] = useState("");
+  const [autoLoaded, setAutoLoaded] = useState(false);
 
   const selectedSpread = useMemo(
     () => spreads.find((s) => s.spread_key === selectedSpreadKey),
@@ -203,61 +200,101 @@ export default function Home() {
     load();
   }, []);
 
-  async function handlePreview() {
+  async function previewCards(spreadKey: string, cardsText: string) {
     setError("");
 
+    const spread = spreads.find((s) => s.spread_key === spreadKey);
+
+    if (!spread) {
+      throw new Error("スプレッドが見つかりません。");
+    }
+
+    const parsed = cardsText
+      .split(/[,\n\s]+/)
+      .map((v) => v.trim())
+      .filter(Boolean)
+      .map(parseCardCode);
+
+    if (parsed.length !== spread.card_count) {
+      throw new Error(
+        `必要枚数は${spread.card_count}枚です。入力は${parsed.length}枚です。`
+      );
+    }
+
+    const cardKeys = parsed.map((p) => p.card_key);
+
+    const { data: cardData, error: cardError } = await supabase
+      .from("tarot_cards")
+      .select("card_key, name_ja, image_url")
+      .in("card_key", cardKeys);
+
+    if (cardError) {
+      throw new Error(cardError.message);
+    }
+
+    const cardMap = new Map((cardData ?? []).map((c) => [c.card_key, c]));
+
+    const result = parsed.map((p, index) => {
+      const card = cardMap.get(p.card_key);
+
+      if (!card) {
+        throw new Error(`カードDBに存在しません：${p.card_key}`);
+      }
+
+      return {
+        ...card,
+        input_code: p.input_code,
+        orientation: p.orientation as "upright" | "reversed",
+        orientation_ja: p.orientation_ja,
+        position_no: index + 1,
+      };
+    });
+
+    setDrawnCards(result);
+  }
+
+  async function handlePreview() {
     try {
-      const parsed = cardCodesText
-        .split(/[,\n\s]+/)
-        .map((v) => v.trim())
-        .filter(Boolean)
-        .map(parseCardCode);
-
-      if (!selectedSpread) {
-        throw new Error("スプレッドが選択されていません。");
-      }
-
-      if (parsed.length !== selectedSpread.card_count) {
-        throw new Error(
-          `必要枚数は${selectedSpread.card_count}枚です。入力は${parsed.length}枚です。`
-        );
-      }
-
-      const cardKeys = parsed.map((p) => p.card_key);
-
-      const { data: cardData, error: cardError } = await supabase
-        .from("tarot_cards")
-        .select("card_key, name_ja, image_url")
-        .in("card_key", cardKeys);
-
-      if (cardError) {
-        throw new Error(cardError.message);
-      }
-
-      const cardMap = new Map((cardData ?? []).map((c) => [c.card_key, c]));
-
-      const result = parsed.map((p, index) => {
-        const card = cardMap.get(p.card_key);
-
-        if (!card) {
-          throw new Error(`カードDBに存在しません：${p.card_key}`);
-        }
-
-        return {
-          ...card,
-          input_code: p.input_code,
-          orientation: p.orientation as "upright" | "reversed",
-          orientation_ja: p.orientation_ja,
-          position_no: index + 1,
-        };
-      });
-
-      setDrawnCards(result);
+      await previewCards(selectedSpreadKey, cardCodesText);
     } catch (e) {
       setError(String(e));
       setDrawnCards([]);
     }
   }
+
+  useEffect(() => {
+    async function autoPreviewFromUrl() {
+      if (autoLoaded) return;
+      if (spreads.length === 0 || positions.length === 0) return;
+
+      const spreadFromUrl = searchParams.get("spread");
+      const cardsFromUrl = searchParams.get("cards");
+
+      if (!spreadFromUrl || !cardsFromUrl) return;
+
+      const decodedCards = decodeURIComponent(cardsFromUrl);
+
+      setSelectedSpreadKey(spreadFromUrl);
+      setCardCodesText(decodedCards);
+      setAutoLoaded(true);
+
+      try {
+        await previewCards(spreadFromUrl, decodedCards);
+      } catch (e) {
+        setError(String(e));
+        setDrawnCards([]);
+      }
+    }
+
+    autoPreviewFromUrl();
+  }, [autoLoaded, searchParams, spreads, positions]);
+
+  const shareUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}?spread=${encodeURIComponent(
+          selectedSpreadKey
+        )}&cards=${encodeURIComponent(cardCodesText.replace(/\s+/g, ""))}`
+      : "";
 
   return (
     <main className="min-h-screen bg-[#fdf7db] p-6 text-stone-800">
@@ -294,12 +331,29 @@ export default function Home() {
             onChange={(e) => setCardCodesText(e.target.value)}
           />
 
-          <button
-            onClick={handlePreview}
-            className="mt-4 rounded-xl bg-stone-800 px-5 py-2 text-white"
-          >
-            展開表示
-          </button>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              onClick={handlePreview}
+              className="rounded-xl bg-stone-800 px-5 py-2 text-white"
+            >
+              展開表示
+            </button>
+
+            {drawnCards.length > 0 && (
+              <button
+                onClick={() => navigator.clipboard.writeText(shareUrl)}
+                className="rounded-xl border px-5 py-2"
+              >
+                展開URLをコピー
+              </button>
+            )}
+          </div>
+
+          {drawnCards.length > 0 && (
+            <p className="mt-3 break-all rounded-lg bg-stone-50 p-3 text-xs text-stone-600">
+              {shareUrl}
+            </p>
+          )}
 
           {error && (
             <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
@@ -396,4 +450,8 @@ export default function Home() {
       </div>
     </main>
   );
+}
+
+export default function Home() {
+  return <HomeContent />;
 }
