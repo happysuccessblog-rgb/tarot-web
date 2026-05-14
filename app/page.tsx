@@ -543,7 +543,7 @@ function HomeContent() {
               const labelY = adjustedLabelPos?.y ?? y + 14;
 
               return (
-                <div key={pos.position_no}>
+                <div key={`${selectedSpreadKey}-${pos.position_no}`}>
                   <div
                     className="absolute z-10"
                     style={{
