@@ -145,12 +145,12 @@ function getCelticLabelPosition(positionNo: number) {
 function getVSpreadLabelPosition(positionNo: number) {
   const map: Record<number, { x: number; y: number }> = {
     1: { x: 50, y: 96 },
-    2: { x: 23, y: 64 },
-    3: { x: 77, y: 64 },
-    4: { x: 10, y: 42 },
-    5: { x: 90, y: 42 },
-    6: { x: 3, y: 20 },
-    7: { x: 97, y: 20 },
+    2: { x: 38, y: 76 },
+    3: { x: 62, y: 76 },
+    4: { x: 27, y: 54 },
+    5: { x: 73, y: 54 },
+    6: { x: 16, y: 32 },
+    7: { x: 84, y: 32 },
   };
 
   return map[positionNo];
@@ -460,7 +460,15 @@ function HomeContent() {
                   </div>
 
                   <div
-                    className="absolute z-30 w-[142px] -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white/95 px-2 py-1 text-center text-[11px] leading-tight shadow"
+                    className={`absolute z-30 w-[142px] -translate-y-1/2 rounded-lg bg-white/95 px-2 py-1 text-center text-[11px] leading-tight shadow ${
+                       selectedSpreadKey === "v_spread" &&
+                        [2, 4, 6].includes(pos.position_no)
+                        ? "-translate-x-full"
+                        : selectedSpreadKey === "v_spread" &&
+                            [3, 5, 7].includes(pos.position_no)
+                          ? "translate-x-0"
+                          : "-translate-x-1/2"
+                    }`}
                     style={{
                       left: `${labelX}%`,
                       top: `${labelY}%`,
