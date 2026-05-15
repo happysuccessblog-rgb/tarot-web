@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
@@ -142,6 +142,128 @@ function getCelticLabelPosition(positionNo: number) {
   return map[positionNo];
 }
 
+function getVSpreadLabelPosition(positionNo: number) {
+  const map: Record<number, { x: number; y: number }> = {
+    1: { x: 50, y: 96 },
+    2: { x: 38, y: 76 },
+    3: { x: 62, y: 76 },
+    4: { x: 27, y: 54 },
+    5: { x: 73, y: 54 },
+    6: { x: 16, y: 32 },
+    7: { x: 84, y: 32 },
+  };
+
+  return map[positionNo];
+}
+
+function getHorseshoeLabelPosition(positionNo: number) {
+  const map: Record<number, { x: number; y: number }> = {
+    1: { x: 14, y: 39 },
+    2: { x: 14, y: 68 },
+    3: { x: 32, y: 82 },
+    4: { x: 50, y: 92 },
+    5: { x: 68, y: 82 },
+    6: { x: 86, y: 68 },
+    7: { x: 86, y: 39 },
+  };
+
+  return map[positionNo];
+}
+
+function getTreeOfLifeLabelPosition(positionNo: number) {
+  const map: Record<number, { x: number; y: number }> = {
+    1: { x: 56, y: 12 },
+    6: { x: 56, y: 38 },
+    9: { x: 56, y: 62 },
+    10: { x: 56, y: 86 },
+
+    3: { x: 18, y: 22 },
+    5: { x: 18, y: 50 },
+    8: { x: 18, y: 78 },
+
+    2: { x: 82, y: 22 },
+    4: { x: 82, y: 50 },
+    7: { x: 82, y: 78 },
+  };
+
+  return map[positionNo];
+}
+
+function getHoroscopeLabelPosition(positionNo: number) {
+  const map: Record<number, { x: number; y: number }> = {
+    1: { x: 12, y: 64 },
+    2: { x: 26, y: 74 },
+    6: { x: 74, y: 74 },
+    7: { x: 88, y: 64 },
+
+    8: { x: 74, y: 26 },
+    12: { x: 26, y: 26 },
+
+    3: { x: 38, y: 61 },
+    4: { x: 50, y: 70 },
+    5: { x: 62, y: 61 },
+    9: { x: 62, y: 39 },
+    10: { x: 50, y: 30 },
+    11: { x: 38, y: 39 },
+
+    13: { x: 62, y: 50 },
+  };
+
+  return map[positionNo];
+}
+
+function getStarOfDavidLabelPosition(positionNo: number) {
+  const map: Record<number, { x: number; y: number }> = {
+    1: { x: 50, y: 34 },
+    2: { x: 16, y: 36 },
+    3: { x: 16, y: 66 },
+    4: { x: 84, y: 66 },
+    5: { x: 84, y: 36 },
+    6: { x: 50, y: 94 },
+  };
+
+  return map[positionNo];
+}
+
+function adjustDisplayPosition(spreadKey: string, x: number, y: number) {
+  if (spreadKey === "greek_cross") {
+    return { x, y: Math.max(0, y - 4) };
+  }
+
+  return { x, y };
+}
+
+function getLabelTranslateClass(spreadKey: string, positionNo: number) {
+  if (spreadKey === "v_spread" && [2, 4, 6].includes(positionNo)) {
+    return "-translate-x-full";
+  }
+
+  if (spreadKey === "v_spread" && [3, 5, 7].includes(positionNo)) {
+    return "translate-x-0";
+  }
+
+  if (spreadKey === "tree_of_life" && [3, 5, 8].includes(positionNo)) {
+    return "-translate-x-full";
+  }
+
+  if (
+    spreadKey === "tree_of_life" &&
+    [1, 2, 4, 6, 7, 9, 10].includes(positionNo)
+  ) {
+    return "translate-x-0";
+  }
+
+  if (spreadKey === "star_of_david" && [2, 3].includes(positionNo)) {
+    return "-translate-x-full";
+  }
+
+  if (spreadKey === "star_of_david" && [4, 5].includes(positionNo)) {
+    return "translate-x-0";
+  }
+
+  return "-translate-x-1/2";
+}
+
 function HomeContent() {
   const searchParams = useSearchParams();
 
@@ -270,7 +392,15 @@ function HomeContent() {
       const spreadFromUrl = searchParams.get("spread");
       const cardsFromUrl = searchParams.get("cards");
 
-      if (!spreadFromUrl || !cardsFromUrl) return;
+      if (!spreadFromUrl) return;
+
+      setSelectedSpreadKey(spreadFromUrl);
+
+     if (!cardsFromUrl) {
+       setDrawnCards([]);
+       setAutoLoaded(true);
+       return;
+     }
 
       const decodedCards = decodeURIComponent(cardsFromUrl);
 
@@ -300,71 +430,110 @@ function HomeContent() {
     <main className="min-h-screen bg-[#fdf7db] p-6 text-stone-800">
       <div className="mx-auto max-w-7xl space-y-6">
         <header>
-          <h1 className="text-3xl font-bold">タロットWEB表示テスト</h1>
+          <h1 className="text-3xl font-bold">タロット_スプレッド展開図</h1>
           <p className="mt-2 text-sm">
-            Supabaseのスプレッド座標とカード画像を使って、展開図を表示します。
+            選択したスプレッドに合わせて展開したカードの展開図を表示します。
           </p>
         </header>
 
         <section className="rounded-2xl bg-white p-4 shadow">
-          <label className="block text-sm font-bold">スプレッド</label>
-          <select
-            className="mt-2 w-full rounded-lg border p-2"
-            value={selectedSpreadKey}
-            onChange={(e) => {
-              setSelectedSpreadKey(e.target.value);
-              setDrawnCards([]);
-              setError("");
-            }}
-          >
-            {spreads.map((spread) => (
-              <option key={spread.spread_key} value={spread.spread_key}>
-                {spread.spread_name}（{spread.card_count}枚）
-              </option>
-            ))}
-          </select>
+          <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
+            {/* 左側 */}
+            <div>
+              <label className="block text-sm font-bold">スプレッド</label>
 
-          <label className="mt-4 block text-sm font-bold">カードコード</label>
-          <textarea
-            className="mt-2 h-28 w-full rounded-lg border p-2"
-            value={cardCodesText}
-            onChange={(e) => setCardCodesText(e.target.value)}
-          />
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              onClick={handlePreview}
-              className="rounded-xl bg-stone-800 px-5 py-2 text-white"
-            >
-              展開表示
-            </button>
-
-            {drawnCards.length > 0 && (
-              <button
-                onClick={() => navigator.clipboard.writeText(shareUrl)}
-                className="rounded-xl border px-5 py-2"
+              <select
+                className="mt-2 w-full rounded-lg border p-2"
+                value={selectedSpreadKey}
+                onChange={(e) => {
+                  setSelectedSpreadKey(e.target.value);
+                  setDrawnCards([]);
+                  setError("");
+                }}
               >
-                展開URLをコピー
-              </button>
-            )}
+                {spreads.map((spread) => (
+                  <option key={spread.spread_key} value={spread.spread_key}>
+                    {spread.spread_name}（{spread.card_count}枚）
+                  </option>
+                ))}
+              </select>
+
+              <label className="mt-4 block text-sm font-bold">
+                カードコード
+              </label>
+
+               <textarea
+                className="mt-2 h-28 w-full rounded-lg border p-2"
+                value={cardCodesText}
+                onChange={(e) => setCardCodesText(e.target.value)}
+              />
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  onClick={handlePreview}
+                  className="rounded-xl bg-stone-800 px-5 py-2 text-white"
+                >
+                  展開表示
+                </button>
+
+                {drawnCards.length > 0 && (
+                  <button
+                    onClick={() => navigator.clipboard.writeText(shareUrl)}
+                    className="rounded-xl border px-5 py-2"
+                  >
+                    展開URLをコピー
+                   </button>
+                )}
+              </div>
+
+              {drawnCards.length > 0 && (
+                <p className="mt-3 break-all rounded-lg bg-stone-50 p-3 text-xs text-stone-600">
+                  {shareUrl}
+                </p>
+              )}
+
+              {error && (
+                <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                  {error}
+                </p>
+              )}
+            </div>
+
+            {/* 右側 */}
+            <div className="rounded-2xl border bg-stone-50 p-4 text-sm leading-7">
+              <h3 className="mb-3 text-lg font-bold">
+                【カードコードのルール】
+              </h3>
+
+              <div className="space-y-3">
+                <div>
+                  <div className="font-bold">1桁目：カード種別</div>
+                  <div>
+                    0：大アルカナ / 1：ワンド / 2：カップ /
+                    3：ソード / 4：ペンタクル
+                  </div>
+                </div>
+
+                <div>
+                  <div className="font-bold">2〜3桁目：番号</div>
+                  <div>
+                    （大アルカナ：00〜21 / 小アルカナ：01〜14）
+                  </div>
+                </div>
+
+                <div>
+                  <div className="font-bold">4桁目：正逆</div>
+                  <div>0：正位置 / 1：逆位置</div>
+                </div>
+              </div>
+            </div>
           </div>
-
-          {drawnCards.length > 0 && (
-            <p className="mt-3 break-all rounded-lg bg-stone-50 p-3 text-xs text-stone-600">
-              {shareUrl}
-            </p>
-          )}
-
-          {error && (
-            <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-              {error}
-            </p>
-          )}
         </section>
 
         <section className="rounded-2xl bg-white p-4 shadow">
           <h2 className="mb-4 text-xl font-bold">
-            {selectedSpread?.spread_name ?? "スプレッド"}
+            {spreads.find((s) => s.spread_key === selectedSpreadKey)
+              ?.spread_name ?? "スプレッド"}
           </h2>
 
           <div className="relative mx-auto h-[980px] w-full max-w-[1320px] overflow-visible rounded-2xl border bg-[#fffdf6]">
@@ -373,23 +542,57 @@ function HomeContent() {
                 (c) => c.position_no === pos.position_no
               );
 
-              const x = pos.x_percent ?? 50;
-              const y = pos.y_percent ?? 50;
+              const rawX = pos.x_percent ?? 50;
+              const rawY = pos.y_percent ?? 50;
+              const { x, y } = adjustDisplayPosition(
+                selectedSpreadKey,
+                rawX,
+                rawY
+              );
 
               const baseRotation = pos.rotation_deg ?? 0;
               const reverseRotation = card?.orientation === "reversed" ? 180 : 0;
               const finalRotation = baseRotation + reverseRotation;
 
-              const labelPos =
-                selectedSpreadKey === "celtic_cross"
-                  ? getCelticLabelPosition(pos.position_no)
-                  : undefined;
+              let labelPos: { x: number; y: number } | undefined;
 
-              const labelX = labelPos?.x ?? x;
-              const labelY = labelPos?.y ?? y + 14;
+              if (selectedSpreadKey === "celtic_cross") {
+                labelPos = getCelticLabelPosition(pos.position_no);
+              }
+
+              if (selectedSpreadKey === "v_spread") {
+                labelPos = getVSpreadLabelPosition(pos.position_no);
+              }
+
+              if (selectedSpreadKey === "horseshoe") {
+                labelPos = getHorseshoeLabelPosition(pos.position_no);
+              }
+
+              if (selectedSpreadKey === "tree_of_life") {
+                labelPos = getTreeOfLifeLabelPosition(pos.position_no);
+              }
+
+              if (selectedSpreadKey === "horoscope") {
+                labelPos = getHoroscopeLabelPosition(pos.position_no);
+              }
+
+              if (selectedSpreadKey === "star_of_david") {
+                labelPos = getStarOfDavidLabelPosition(pos.position_no);
+              }
+
+              const adjustedLabelPos = labelPos
+                ? adjustDisplayPosition(
+                    selectedSpreadKey,
+                    labelPos.x,
+                    labelPos.y
+                  )
+                : undefined;
+
+              const labelX = adjustedLabelPos?.x ?? x;
+              const labelY = adjustedLabelPos?.y ?? y + 14;
 
               return (
-                <div key={pos.position_no}>
+                <div key={`${selectedSpreadKey}-${pos.position_no}`}>
                   <div
                     className="absolute z-10"
                     style={{
@@ -420,7 +623,10 @@ function HomeContent() {
                   </div>
 
                   <div
-                    className="absolute z-30 w-[142px] -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white/95 px-2 py-1 text-center text-[11px] leading-tight shadow"
+                    className={`absolute z-30 w-[142px] -translate-y-1/2 rounded-lg bg-white/95 px-2 py-1 text-center text-[11px] leading-tight shadow ${getLabelTranslateClass(
+                      selectedSpreadKey,
+                      pos.position_no
+                    )}`}
                     style={{
                       left: `${labelX}%`,
                       top: `${labelY}%`,
@@ -453,5 +659,9 @@ function HomeContent() {
 }
 
 export default function Home() {
-  return <HomeContent />;
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
+  );
 }
