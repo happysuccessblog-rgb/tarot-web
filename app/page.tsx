@@ -482,12 +482,15 @@ function HomeContent() {
           question: "",
           cards: cardCodesText.replace(/\s+/g, ""),
           reading_summary: readingSummary,
-          reading_detail: `${readingDetail}\n\n[spread_image_url]\n${imageUrl}`,
+          reading_detail: readingDetail,
+          spread_image_url: imageUrl,
         }),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error("画像URL保存エラー");
+        throw new Error(result.error ?? "画像URL保存エラー");
       }
 
       setImageSaveMessage("展開図画像を保存しました。");

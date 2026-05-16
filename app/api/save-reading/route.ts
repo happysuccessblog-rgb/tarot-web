@@ -10,6 +10,7 @@ type SaveReadingBody = {
   cards?: string;
   reading_summary?: string;
   reading_detail?: string;
+  spread_image_url?: string;
 };
 
 export async function POST(request: Request) {
@@ -40,12 +41,16 @@ export async function POST(request: Request) {
     const payload = {
       id: 1,
       created_at: new Date().toISOString(),
+
       spread_key: body.spread_key ?? "",
       spread_name: body.spread_name ?? "",
       question: body.question ?? "",
       cards: body.cards ?? "",
+
       reading_summary: body.reading_summary ?? "",
       reading_detail: body.reading_detail ?? "",
+
+      spread_image_url: body.spread_image_url ?? "",
     };
 
     const { data, error } = await supabase
