@@ -1,7 +1,14 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "next/navigation";
+import { toPng } from "html-to-image";
 import { supabase } from "../lib/supabase";
 
 type Spread = {
@@ -280,6 +287,9 @@ function HomeContent() {
   const [readingDetail, setReadingDetail] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const spreadRef = useRef<HTMLDivElement | null>(null);
+  const [imageSaving, setImageSaving] = useState(false);
+  const [imageSaveMessage, setImageSaveMessage] = useState("");
 
   const selectedSpread = useMemo(
     () => spreads.find((s) => s.spread_key === selectedSpreadKey),
@@ -421,6 +431,70 @@ function HomeContent() {
       setError(String(e));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSaveSpreadImage() {
+    try {
+      if (!spreadRef.current) {
+        throw new Error("展開図が見つかりません。");
+      }
+
+      setImageSaving(true);
+      setImageSaveMessage("");
+      setError("");
+
+      const dataUrl = await toPng(spreadRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+      });
+
+      const blob = await (await fetch(dataUrl)).blob();
+
+      const filePath = "latest-spread.png";
+
+      const { error: uploadError } = await supabase.storage
+        .from("tarot-generated")
+        .upload(filePath, blob, {
+          upsert: true,
+          contentType: "image/png",
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from("tarot-generated")
+        .getPublicUrl(filePath);
+
+      const imageUrl = data.publicUrl;
+
+      const response = await fetch("/api/save-reading", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": "tarot_save_take6730",
+        },
+        body: JSON.stringify({
+          spread_key: selectedSpreadKey,
+          spread_name: selectedSpread?.spread_name ?? "",
+          question: "",
+          cards: cardCodesText.replace(/\s+/g, ""),
+          reading_summary: readingSummary,
+          reading_detail: `${readingDetail}\n\n[spread_image_url]\n${imageUrl}`,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("画像URL保存エラー");
+      }
+
+      setImageSaveMessage("展開図画像を保存しました。");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setImageSaving(false);
     }
   }
 
@@ -589,7 +663,7 @@ function HomeContent() {
             onChange={(e) => setReadingDetail(e.target.value)}
           />
 
-          <div className="mt-4 flex items-center gap-4">
+          <div className="mt-4 flex flex-wrap items-center gap-4">
             <button
               onClick={handleSaveReading}
               disabled={saving}
@@ -602,6 +676,24 @@ function HomeContent() {
               <div className="text-sm text-green-700">{saveMessage}</div>
             )}
           </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <button
+              onClick={handleSaveSpreadImage}
+              disabled={imageSaving}
+              className="rounded-xl bg-emerald-700 px-5 py-2 text-white disabled:opacity-50"
+            >
+              {imageSaving
+                ? "展開図画像を保存中..."
+                : "展開図画像を保存"}
+            </button>
+
+            {imageSaveMessage && (
+              <div className="text-sm text-green-700">
+                {imageSaveMessage}
+              </div>
+            )}
+          </div>
         </section>
 
         <section className="rounded-2xl bg-white p-4 shadow">
@@ -610,7 +702,10 @@ function HomeContent() {
               ?.spread_name ?? "スプレッド"}
           </h2>
 
-          <div className="relative mx-auto h-[980px] w-full max-w-[1320px] overflow-visible rounded-2xl border bg-[#fffdf6]">
+          <div
+            ref={spreadRef}
+            className="relative mx-auto h-[980px] w-full max-w-[1320px] overflow-visible rounded-2xl border bg-[#fffdf6]"
+          >
             {selectedPositions.map((pos) => {
               const card = drawnCards.find(
                 (c) => c.position_no === pos.position_no
