@@ -99,6 +99,22 @@ function formatQuestionText(text: string) {
     .trim();
 }
 
+function removeDuplicateCardNameAtStart(body: string, card?: CardListItem) {
+  if (!card) return body.trim();
+
+  const normalized = body.replace(/\r\n/g, "\n").trim();
+  const cardTitle = `${card.name_ja}（${card.orientation_ja}）`;
+
+  const lines = normalized.split("\n");
+  const firstLine = lines[0]?.trim();
+
+  if (firstLine === cardTitle) {
+    return lines.slice(1).join("\n").trim();
+  }
+
+  return normalized;
+}
+
 function parsePdfCardCode(code: string) {
   const trimmed = code.trim();
 
@@ -184,10 +200,12 @@ function parseDetailSections(
       cardList.find((item) => item.position_no === positionNo) ??
       cardList[index];
 
+    const rawBody = normalized.slice(start, end).trim();
+
     return {
       card,
       title: match[2].trim(),
-      body: normalized.slice(start, end).trim(),
+      body: removeDuplicateCardNameAtStart(rawBody, card),
     };
   });
 }
@@ -297,7 +315,7 @@ export default function PdfPage() {
         @media print {
           @page {
             size: A4;
-            margin: 14mm;
+            margin: 12mm;
           }
 
           .no-print {
@@ -309,6 +327,10 @@ export default function PdfPage() {
             box-shadow: none !important;
             margin: 0 !important;
             width: 100% !important;
+          }
+
+          .print-page:last-child {
+            break-after: auto;
           }
 
           .avoid-break {
@@ -347,7 +369,14 @@ export default function PdfPage() {
       </div>
 
       <article className="mx-auto max-w-[900px] space-y-8">
-        <section className="print-page rounded-[28px] bg-[#fff8e7] p-10 shadow-2xl">
+        <section className="print-page relative rounded-[28px] bg-[#fff8e7] p-10 shadow-2xl">
+          <div className="absolute left-6 top-5 text-xs text-[#8b5a20]">
+            作成日時：
+            {reading.created_at
+              ? new Date(reading.created_at).toLocaleString("ja-JP")
+              : ""}
+          </div>
+
           <div className="mb-8 rounded-[24px] border border-[#d8b15f] bg-[#1b1430] p-8 text-center text-[#f7e7b1]">
             <div className="text-sm tracking-[0.35em] text-[#d8b15f]">
               TAROT READING REPORT
@@ -366,44 +395,31 @@ export default function PdfPage() {
                 ご相談内容
               </div>
 
-              <div className="whitespace-pre-wrap leading-8">
+              <div className="whitespace-pre-wrap leading-7">
                 {formatQuestionText(reading.question) || "未入力"}
               </div>
             </div>
 
             <div className="rounded-2xl border border-[#e3c988] bg-white/75 p-5">
               <div className="mb-2 text-sm font-bold text-[#8b5a20]">
-                展開情報
+                展開カード一覧
               </div>
 
-              <div className="space-y-3 text-sm leading-7">
-                <div>
-                  作成日時：
-                  {reading.created_at
-                    ? new Date(reading.created_at).toLocaleString("ja-JP")
-                    : ""}
-                </div>
-
-                <div>
-                  <div className="font-bold text-[#8b5a20]">
-                    展開カード一覧
+              <div className="space-y-1 text-[13px] leading-6">
+                {cardList.map((card) => (
+                  <div key={card.position_no}>
+                    {card.position_no}. {card.position_name}：
+                    {card.name_ja}（{card.orientation_ja}）
                   </div>
-
-                  <div className="mt-2 space-y-1 text-[13px] leading-6">
-                    {cardList.map((card) => (
-                      <div key={card.position_no}>
-                        {card.position_no}. {card.position_name}：
-                        {card.name_ja}（{card.orientation_ja}）
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
+        </section>
 
-          <div className="mt-8 rounded-[24px] border border-[#d8b15f] bg-white p-5">
-            <div className="mb-4 text-center text-lg font-bold text-[#8b5a20]">
+        <section className="print-page rounded-[28px] bg-[#fff8e7] p-10 shadow-2xl">
+          <div className="rounded-[24px] border border-[#d8b15f] bg-white p-6">
+            <div className="mb-5 text-center text-2xl font-bold text-[#8b5a20]">
               スプレッド展開図
             </div>
 
@@ -411,7 +427,7 @@ export default function PdfPage() {
               <img
                 src={reading.spread_image_url}
                 alt="スプレッド展開図"
-                className="mx-auto max-h-[620px] w-full rounded-2xl object-contain"
+                className="mx-auto max-h-[850px] w-full rounded-2xl object-contain"
               />
             ) : (
               <div className="rounded-xl bg-stone-100 p-8 text-center text-stone-500">
@@ -430,7 +446,7 @@ export default function PdfPage() {
             <h2 className="mt-2 text-3xl font-bold">鑑定結果</h2>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-5">
             {summarySections.map((section, index) => (
               <div
                 key={index}
@@ -440,7 +456,7 @@ export default function PdfPage() {
                   {section.title}
                 </div>
 
-                <div className="whitespace-pre-wrap leading-8">
+                <div className="whitespace-pre-wrap leading-7">
                   {section.body}
                 </div>
               </div>
@@ -461,33 +477,30 @@ export default function PdfPage() {
             {detailSections.map((section, index) => (
               <div
                 key={index}
-                className="detail-card-page rounded-2xl border border-[#ead8a6] bg-white/80 p-7"
+                className="detail-card-page rounded-[24px] border border-[#d8b15f] bg-white/85 p-7"
               >
-                <div className="mb-5 flex items-center justify-between border-b border-[#ead8a6] pb-4">
-                  <div>
-                    <div className="text-xl font-bold text-[#8b5a20]">
-                      {section.card?.position_no}.{" "}
-                      {section.card?.position_name}
-                    </div>
+                <div className="mb-5 border-b border-[#ead8a6] pb-4">
+                  <div className="text-xl font-bold text-[#8b5a20]">
+                    {section.card?.position_no}. {section.card?.position_name}
+                  </div>
 
-                    <div className="mt-1 text-lg font-bold">
-                      {section.card?.name_ja}（{section.card?.orientation_ja}）
-                    </div>
+                  <div className="mt-1 text-lg font-bold">
+                    {section.card?.name_ja}（{section.card?.orientation_ja}）
                   </div>
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-[150px_1fr]">
+                <div className="grid gap-6 md:grid-cols-[170px_1fr]">
                   <div>
                     {section.card?.image_url && (
                       <img
                         src={section.card.image_url}
                         alt={section.card.name_ja}
-                        className="mx-auto w-[135px] rounded-xl shadow-lg"
+                        className="mx-auto w-[165px] rounded-xl shadow-lg"
                       />
                     )}
                   </div>
 
-                  <div className="whitespace-pre-wrap leading-8">
+                  <div className="whitespace-pre-wrap leading-7">
                     {section.body}
                   </div>
                 </div>
