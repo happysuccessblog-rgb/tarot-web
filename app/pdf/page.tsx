@@ -23,6 +23,17 @@ type CardListItem = {
   image_url: string | null;
 };
 
+type SummarySection = {
+  title: string;
+  body: string;
+};
+
+type DetailSection = {
+  card?: CardListItem;
+  title: string;
+  body: string;
+};
+
 const majorKeys = [
   "the_fool",
   "the_magician",
@@ -72,20 +83,15 @@ const rankMap: Record<string, string> = {
   "14": "king",
 };
 
-function splitText(text: string) {
-  return text
-    .split(/\n{2,}/)
-    .map((v) => v.trim())
-    .filter(Boolean);
-}
-
 function parsePdfCardCode(code: string) {
   const trimmed = code.trim();
 
   const type = trimmed.slice(0, 1);
   const num = trimmed.slice(1, 3);
   const orientationCode = trimmed.slice(3, 4);
-  const orientation_ja = orientationCode === "0" ? "正位置" : "逆位置";
+
+  const orientation_ja =
+    orientationCode === "0" ? "正位置" : "逆位置";
 
   if (type === "0") {
     return {
@@ -100,26 +106,116 @@ function parsePdfCardCode(code: string) {
   };
 }
 
+function parseSummarySections(text: string): SummarySection[] {
+  const normalized = text.replace(/\r\n/g, "\n");
+
+  const matches = Array.from(
+    normalized.matchAll(
+      /(?:^|\n)([①②③④⑤⑥⑦⑧⑨]|\d+)[\.．、\s]*([^\n]+)\n/g
+    )
+  );
+
+  if (matches.length === 0) {
+    return [
+      {
+        title: "鑑定結果",
+        body: normalized.trim(),
+      },
+    ];
+  }
+
+  return matches.map((match, index) => {
+    const start = (match.index ?? 0) + match[0].length;
+
+    const end =
+      index + 1 < matches.length
+        ? matches[index + 1].index ?? normalized.length
+        : normalized.length;
+
+    return {
+      title: match[2].trim(),
+      body: normalized.slice(start, end).trim(),
+    };
+  });
+}
+
+function parseDetailSections(
+  text: string,
+  cardList: CardListItem[]
+): DetailSection[] {
+  const normalized = text.replace(/\r\n/g, "\n");
+
+  const matches = Array.from(
+    normalized.matchAll(
+      /(?:^|\n)(\d+)[\.．、\s]+([^\n]+?)\n/g
+    )
+  );
+
+  if (matches.length === 0) {
+    return [
+      {
+        title: "各カード詳細診断",
+        body: normalized.trim(),
+      },
+    ];
+  }
+
+  return matches.map((match, index) => {
+    const positionNo = Number(match[1]);
+
+    const start = (match.index ?? 0) + match[0].length;
+
+    const end =
+      index + 1 < matches.length
+        ? matches[index + 1].index ?? normalized.length
+        : normalized.length;
+
+    const card =
+      cardList.find(
+        (item) => item.position_no === positionNo
+      ) ?? cardList[index];
+
+    return {
+      card,
+      title: match[2].trim(),
+      body: normalized.slice(start, end).trim(),
+    };
+  });
+}
+
 export default function PdfPage() {
-  const [reading, setReading] = useState<LatestReading | null>(null);
-  const [cardList, setCardList] = useState<CardListItem[]>([]);
+  const [reading, setReading] =
+    useState<LatestReading | null>(null);
+
+  const [cardList, setCardList] = useState<CardListItem[]>(
+    []
+  );
+
   const [error, setError] = useState("");
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadReading() {
       try {
-        const response = await fetch("/api/latest-reading", {
-          cache: "no-store",
-        });
+        const response = await fetch(
+          "/api/latest-reading",
+          {
+            cache: "no-store",
+          }
+        );
 
         const result = await response.json();
 
         if (!response.ok) {
-          throw new Error(result.error ?? "最新鑑定結果を取得できませんでした。");
+          throw new Error(
+            result.error ??
+              "最新鑑定結果を取得できませんでした。"
+          );
         }
 
-        const savedReading = result.reading as LatestReading;
+        const savedReading =
+          result.reading as LatestReading;
 
         setReading(savedReading);
 
@@ -129,21 +225,36 @@ export default function PdfPage() {
           .filter(Boolean)
           .map(parsePdfCardCode);
 
-        const cardKeys = parsedCards.map((card) => card.card_key);
+        const cardKeys = parsedCards.map(
+          (card) => card.card_key
+        );
 
         const { data: cardData } = await supabase
           .from("tarot_cards")
-          .select("card_key, name_ja, image_url")
+          .select(
+            "card_key, name_ja, image_url"
+          )
           .in("card_key", cardKeys);
 
-        const { data: positionData } = await supabase
-          .from("tarot_spread_positions")
-          .select("position_no, position_name")
-          .eq("spread_key", savedReading.spread_key)
-          .order("position_no", { ascending: true });
+        const { data: positionData } =
+          await supabase
+            .from("tarot_spread_positions")
+            .select(
+              "position_no, position_name"
+            )
+            .eq(
+              "spread_key",
+              savedReading.spread_key
+            )
+            .order("position_no", {
+              ascending: true,
+            });
 
         const cardMap = new Map(
-          (cardData ?? []).map((card) => [card.card_key, card])
+          (cardData ?? []).map((card) => [
+            card.card_key,
+            card,
+          ])
         );
 
         const positionMap = new Map(
@@ -153,17 +264,27 @@ export default function PdfPage() {
           ])
         );
 
-        const list = parsedCards.map((card, index) => {
-          const cardInfo = cardMap.get(card.card_key);
+        const list = parsedCards.map(
+          (card, index) => {
+            const cardInfo = cardMap.get(
+              card.card_key
+            );
 
-          return {
-            position_no: index + 1,
-            position_name: positionMap.get(index + 1) ?? "",
-            name_ja: cardInfo?.name_ja ?? card.card_key,
-            orientation_ja: card.orientation_ja,
-            image_url: cardInfo?.image_url ?? null,
-          };
-        });
+            return {
+              position_no: index + 1,
+              position_name:
+                positionMap.get(index + 1) ??
+                "",
+              name_ja:
+                cardInfo?.name_ja ??
+                card.card_key,
+              orientation_ja:
+                card.orientation_ja,
+              image_url:
+                cardInfo?.image_url ?? null,
+            };
+          }
+        );
 
         setCardList(list);
       } catch (e) {
@@ -194,8 +315,16 @@ export default function PdfPage() {
     );
   }
 
-  const summaryBlocks = splitText(reading.reading_summary ?? "");
-  const detailBlocks = splitText(reading.reading_detail ?? "");
+  const summarySections =
+    parseSummarySections(
+      reading.reading_summary ?? ""
+    );
+
+  const detailSections =
+    parseDetailSections(
+      reading.reading_detail ?? "",
+      cardList
+    );
 
   return (
     <main className="min-h-screen bg-[#120d1f] px-6 py-8 text-[#2c1b10] print:bg-white print:p-0">
@@ -215,7 +344,6 @@ export default function PdfPage() {
             box-shadow: none !important;
             margin: 0 !important;
             width: 100% !important;
-            min-height: auto !important;
           }
 
           .avoid-break {
@@ -231,9 +359,13 @@ export default function PdfPage() {
 
       <div className="no-print mx-auto mb-6 flex max-w-[900px] items-center justify-between rounded-2xl bg-white/10 p-4 text-white">
         <div>
-          <div className="text-lg font-bold">PDF出力プレビュー</div>
+          <div className="text-lg font-bold">
+            PDF出力プレビュー
+          </div>
+
           <div className="text-sm opacity-80">
-            表示内容を確認して、ブラウザの印刷からPDF保存してください。
+            表示内容を確認して、
+            ブラウザの印刷からPDF保存してください。
           </div>
         </div>
 
@@ -246,20 +378,19 @@ export default function PdfPage() {
       </div>
 
       <article className="mx-auto max-w-[900px] space-y-8">
-        <section className="print-page relative min-h-[1120px] overflow-hidden rounded-[28px] bg-[#fff8e7] p-10 shadow-2xl">
-          <div className="absolute left-0 top-0 h-2 w-full bg-gradient-to-r from-[#8b5a20] via-[#d8b15f] to-[#8b5a20]" />
-
-          <div className="mb-8 rounded-[24px] border border-[#d8b15f] bg-[#1b1430] p-8 text-center text-[#f7e7b1] shadow-xl">
+        <section className="print-page rounded-[28px] bg-[#fff8e7] p-10 shadow-2xl">
+          <div className="mb-8 rounded-[24px] border border-[#d8b15f] bg-[#1b1430] p-8 text-center text-[#f7e7b1]">
             <div className="text-sm tracking-[0.35em] text-[#d8b15f]">
               TAROT READING REPORT
             </div>
 
-            <h1 className="mt-4 text-4xl font-bold tracking-wide">
+            <h1 className="mt-4 text-4xl font-bold">
               タロット鑑定書
             </h1>
 
             <div className="mt-5 text-lg text-[#fff6d6]">
-              使用スプレッド名：{reading.spread_name || "未設定"}
+              使用スプレッド名：
+              {reading.spread_name}
             </div>
           </div>
 
@@ -268,6 +399,7 @@ export default function PdfPage() {
               <div className="mb-2 text-sm font-bold text-[#8b5a20]">
                 ご相談内容
               </div>
+
               <div className="whitespace-pre-wrap leading-8">
                 {reading.question || "未入力"}
               </div>
@@ -282,7 +414,9 @@ export default function PdfPage() {
                 <div>
                   作成日時：
                   {reading.created_at
-                    ? new Date(reading.created_at).toLocaleString("ja-JP")
+                    ? new Date(
+                        reading.created_at
+                      ).toLocaleString("ja-JP")
                     : ""}
                 </div>
 
@@ -291,33 +425,35 @@ export default function PdfPage() {
                     展開カード一覧
                   </div>
 
-                  <div className="mt-2 max-h-[330px] space-y-1 overflow-hidden text-[13px] leading-6">
-                    {cardList.length > 0 ? (
-                      cardList.map((card) => (
-                        <div key={card.position_no}>
-                          {card.position_no}. {card.position_name}：
-                          {card.name_ja}（{card.orientation_ja}）
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-stone-500">
-                        カード一覧を取得できませんでした。
+                  <div className="mt-2 space-y-1 text-[13px] leading-6">
+                    {cardList.map((card) => (
+                      <div
+                        key={card.position_no}
+                      >
+                        {card.position_no}.{" "}
+                        {card.position_name}：
+                        {card.name_ja}
+                        （
+                        {card.orientation_ja}
+                        ）
                       </div>
-                    )}
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 rounded-[24px] border border-[#d8b15f] bg-white p-5 shadow-inner">
+          <div className="mt-8 rounded-[24px] border border-[#d8b15f] bg-white p-5">
             <div className="mb-4 text-center text-lg font-bold text-[#8b5a20]">
               スプレッド展開図
             </div>
 
             {reading.spread_image_url ? (
               <img
-                src={reading.spread_image_url}
+                src={
+                  reading.spread_image_url
+                }
                 alt="スプレッド展開図"
                 className="mx-auto max-h-[620px] w-full rounded-2xl object-contain"
               />
@@ -329,57 +465,104 @@ export default function PdfPage() {
           </div>
         </section>
 
-        <section className="print-page min-h-[1120px] rounded-[28px] bg-[#fff8e7] p-10 shadow-2xl">
+        <section className="print-page rounded-[28px] bg-[#fff8e7] p-10 shadow-2xl">
           <div className="mb-6 border-b border-[#d8b15f] pb-4">
             <div className="text-sm tracking-[0.25em] text-[#8b5a20]">
               OVERALL READING
             </div>
-            <h2 className="mt-2 text-3xl font-bold">鑑定結果</h2>
+
+            <h2 className="mt-2 text-3xl font-bold">
+              鑑定結果
+            </h2>
           </div>
 
-          <div className="space-y-5">
-            {summaryBlocks.length > 0 ? (
-              summaryBlocks.map((block, index) => (
+          <div className="space-y-6">
+            {summarySections.map(
+              (section, index) => (
                 <div
                   key={index}
-                  className="avoid-break rounded-2xl border border-[#ead8a6] bg-white/80 p-5 leading-8"
+                  className="avoid-break rounded-2xl border border-[#ead8a6] bg-white/80 p-6"
                 >
-                  <div className="whitespace-pre-wrap">{block}</div>
+                  <div className="mb-3 text-xl font-bold text-[#8b5a20]">
+                    {section.title}
+                  </div>
+
+                  <div className="whitespace-pre-wrap leading-8">
+                    {section.body}
+                  </div>
                 </div>
-              ))
-            ) : (
-              <div className="rounded-2xl bg-white/80 p-5 text-stone-500">
-                鑑定結果が保存されていません。
-              </div>
+              )
             )}
           </div>
         </section>
 
-        <section className="print-page min-h-[1120px] rounded-[28px] bg-[#fff8e7] p-10 shadow-2xl">
+        <section className="print-page rounded-[28px] bg-[#fff8e7] p-10 shadow-2xl">
           <div className="mb-6 border-b border-[#d8b15f] pb-4">
             <div className="text-sm tracking-[0.25em] text-[#8b5a20]">
               CARD DETAILS
             </div>
-            <h2 className="mt-2 text-3xl font-bold">各カード詳細診断</h2>
+
+            <h2 className="mt-2 text-3xl font-bold">
+              各カード詳細診断
+            </h2>
           </div>
 
-          <div className="space-y-5">
-            {detailBlocks.length > 0 ? (
-              detailBlocks.map((block, index) => (
+          <div className="space-y-8">
+            {detailSections.map(
+              (section, index) => (
                 <div
                   key={index}
-                  className="avoid-break rounded-2xl border border-[#ead8a6] bg-white/80 p-5 leading-8"
+                  className="avoid-break rounded-2xl border border-[#ead8a6] bg-white/80 p-6"
                 >
-                  <div className="mb-2 text-sm font-bold text-[#8b5a20]">
-                    Detail {index + 1}
+                  <div className="grid gap-6 md:grid-cols-[180px_1fr]">
+                    <div>
+                      {section.card
+                        ?.image_url && (
+                        <img
+                          src={
+                            section.card
+                              .image_url
+                          }
+                          alt={
+                            section.card
+                              .name_ja
+                          }
+                          className="mx-auto w-[160px] rounded-xl shadow-lg"
+                        />
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="text-xl font-bold text-[#8b5a20]">
+                        {section.card
+                          ?.position_no}
+                        .{" "}
+                        {
+                          section.card
+                            ?.position_name
+                        }
+                      </div>
+
+                      <div className="mt-1 text-lg font-bold">
+                        {
+                          section.card
+                            ?.name_ja
+                        }
+                        （
+                        {
+                          section.card
+                            ?.orientation_ja
+                        }
+                        ）
+                      </div>
+
+                      <div className="mt-5 whitespace-pre-wrap leading-8">
+                        {section.body}
+                      </div>
+                    </div>
                   </div>
-                  <div className="whitespace-pre-wrap">{block}</div>
                 </div>
-              ))
-            ) : (
-              <div className="rounded-2xl bg-white/80 p-5 text-stone-500">
-                各カード詳細診断が保存されていません。
-              </div>
+              )
             )}
           </div>
         </section>
