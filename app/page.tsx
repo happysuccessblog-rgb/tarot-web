@@ -276,6 +276,10 @@ function HomeContent() {
   const [drawnCards, setDrawnCards] = useState<DrawnCard[]>([]);
   const [error, setError] = useState("");
   const [autoLoaded, setAutoLoaded] = useState(false);
+  const [readingSummary, setReadingSummary] = useState("");
+  const [readingDetail, setReadingDetail] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const selectedSpread = useMemo(
     () => spreads.find((s) => s.spread_key === selectedSpreadKey),
@@ -384,6 +388,42 @@ function HomeContent() {
     }
   }
 
+  async function handleSaveReading() {
+    try {
+      setSaving(true);
+      setSaveMessage("");
+      setError("");
+
+      const response = await fetch("/api/save-reading", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": "tarot_save_take6730",
+        },
+        body: JSON.stringify({
+          spread_key: selectedSpreadKey,
+          spread_name: selectedSpread?.spread_name ?? "",
+          question: "",
+          cards: cardCodesText.replace(/\s+/g, ""),
+          reading_summary: readingSummary,
+          reading_detail: readingDetail,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error ?? "保存エラー");
+      }
+
+      setSaveMessage("鑑定結果を保存しました。");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   useEffect(() => {
     async function autoPreviewFromUrl() {
       if (autoLoaded) return;
@@ -396,11 +436,11 @@ function HomeContent() {
 
       setSelectedSpreadKey(spreadFromUrl);
 
-     if (!cardsFromUrl) {
-       setDrawnCards([]);
-       setAutoLoaded(true);
-       return;
-     }
+      if (!cardsFromUrl) {
+        setDrawnCards([]);
+        setAutoLoaded(true);
+        return;
+      }
 
       const decodedCards = decodeURIComponent(cardsFromUrl);
 
@@ -438,7 +478,6 @@ function HomeContent() {
 
         <section className="rounded-2xl bg-white p-4 shadow">
           <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
-            {/* 左側 */}
             <div>
               <label className="block text-sm font-bold">スプレッド</label>
 
@@ -462,7 +501,7 @@ function HomeContent() {
                 カードコード
               </label>
 
-               <textarea
+              <textarea
                 className="mt-2 h-28 w-full rounded-lg border p-2"
                 value={cardCodesText}
                 onChange={(e) => setCardCodesText(e.target.value)}
@@ -482,7 +521,7 @@ function HomeContent() {
                     className="rounded-xl border px-5 py-2"
                   >
                     展開URLをコピー
-                   </button>
+                  </button>
                 )}
               </div>
 
@@ -499,7 +538,6 @@ function HomeContent() {
               )}
             </div>
 
-            {/* 右側 */}
             <div className="rounded-2xl border bg-stone-50 p-4 text-sm leading-7">
               <h3 className="mb-3 text-lg font-bold">
                 【カードコードのルール】
@@ -527,6 +565,42 @@ function HomeContent() {
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl bg-white p-4 shadow">
+          <h2 className="mb-4 text-xl font-bold">鑑定結果保存</h2>
+
+          <label className="block text-sm font-bold">①〜⑧ 鑑定結果</label>
+
+          <textarea
+            className="mt-2 h-48 w-full rounded-lg border p-3"
+            value={readingSummary}
+            onChange={(e) => setReadingSummary(e.target.value)}
+          />
+
+          <label className="mt-6 block text-sm font-bold">
+            ⑨ 各カード詳細診断
+          </label>
+
+          <textarea
+            className="mt-2 h-72 w-full rounded-lg border p-3"
+            value={readingDetail}
+            onChange={(e) => setReadingDetail(e.target.value)}
+          />
+
+          <div className="mt-4 flex items-center gap-4">
+            <button
+              onClick={handleSaveReading}
+              disabled={saving}
+              className="rounded-xl bg-indigo-700 px-5 py-2 text-white disabled:opacity-50"
+            >
+              {saving ? "保存中..." : "鑑定結果を保存"}
+            </button>
+
+            {saveMessage && (
+              <div className="text-sm text-green-700">{saveMessage}</div>
+            )}
           </div>
         </section>
 
