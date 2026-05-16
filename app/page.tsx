@@ -697,6 +697,17 @@ function HomeContent() {
               </div>
             )}
           </div>
+
+          <div className="mt-4">
+            <a
+              href="/pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block rounded-xl bg-amber-500 px-5 py-2 font-bold text-stone-900"
+            >
+              PDF用ページを開く
+            </a>
+         </div>
         </section>
 
         <section className="rounded-2xl bg-white p-4 shadow">
