@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabase";
 
 type LatestReading = {
   id: number;
@@ -14,6 +15,63 @@ type LatestReading = {
   spread_image_url: string | null;
 };
 
+type CardListItem = {
+  position_no: number;
+  position_name: string;
+  name_ja: string;
+  orientation_ja: string;
+  image_url: string | null;
+};
+
+const majorKeys = [
+  "the_fool",
+  "the_magician",
+  "the_high_priestess",
+  "the_empress",
+  "the_emperor",
+  "the_hierophant",
+  "the_lovers",
+  "the_chariot",
+  "strength",
+  "the_hermit",
+  "wheel_of_fortune",
+  "justice",
+  "the_hanged_man",
+  "death",
+  "temperance",
+  "the_devil",
+  "the_tower",
+  "the_star",
+  "the_moon",
+  "the_sun",
+  "judgement",
+  "the_world",
+];
+
+const suitMap: Record<string, string> = {
+  "1": "wands",
+  "2": "cups",
+  "3": "swords",
+  "4": "pentacles",
+};
+
+const rankMap: Record<string, string> = {
+  "01": "ace",
+  "02": "2",
+  "03": "3",
+  "04": "4",
+  "05": "5",
+  "06": "6",
+  "07": "7",
+  "08": "8",
+  "09": "9",
+  "10": "10",
+  "11": "page",
+  "12": "knight",
+  "13": "queen",
+  "14": "king",
+};
+
 function splitText(text: string) {
   return text
     .split(/\n{2,}/)
@@ -21,8 +79,30 @@ function splitText(text: string) {
     .filter(Boolean);
 }
 
+function parsePdfCardCode(code: string) {
+  const trimmed = code.trim();
+
+  const type = trimmed.slice(0, 1);
+  const num = trimmed.slice(1, 3);
+  const orientationCode = trimmed.slice(3, 4);
+  const orientation_ja = orientationCode === "0" ? "正位置" : "逆位置";
+
+  if (type === "0") {
+    return {
+      card_key: majorKeys[Number(num)],
+      orientation_ja,
+    };
+  }
+
+  return {
+    card_key: `${suitMap[type]}_${rankMap[num]}`,
+    orientation_ja,
+  };
+}
+
 export default function PdfPage() {
   const [reading, setReading] = useState<LatestReading | null>(null);
+  const [cardList, setCardList] = useState<CardListItem[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +119,53 @@ export default function PdfPage() {
           throw new Error(result.error ?? "最新鑑定結果を取得できませんでした。");
         }
 
-        setReading(result.reading);
+        const savedReading = result.reading as LatestReading;
+
+        setReading(savedReading);
+
+        const parsedCards = savedReading.cards
+          .split(/[,\n\s]+/)
+          .map((v) => v.trim())
+          .filter(Boolean)
+          .map(parsePdfCardCode);
+
+        const cardKeys = parsedCards.map((card) => card.card_key);
+
+        const { data: cardData } = await supabase
+          .from("tarot_cards")
+          .select("card_key, name_ja, image_url")
+          .in("card_key", cardKeys);
+
+        const { data: positionData } = await supabase
+          .from("tarot_spread_positions")
+          .select("position_no, position_name")
+          .eq("spread_key", savedReading.spread_key)
+          .order("position_no", { ascending: true });
+
+        const cardMap = new Map(
+          (cardData ?? []).map((card) => [card.card_key, card])
+        );
+
+        const positionMap = new Map(
+          (positionData ?? []).map((pos) => [
+            pos.position_no,
+            pos.position_name,
+          ])
+        );
+
+        const list = parsedCards.map((card, index) => {
+          const cardInfo = cardMap.get(card.card_key);
+
+          return {
+            position_no: index + 1,
+            position_name: positionMap.get(index + 1) ?? "",
+            name_ja: cardInfo?.name_ja ?? card.card_key,
+            orientation_ja: card.orientation_ja,
+            image_url: cardInfo?.image_url ?? null,
+          };
+        });
+
+        setCardList(list);
       } catch (e) {
         setError(String(e));
       } finally {
@@ -133,7 +259,7 @@ export default function PdfPage() {
             </h1>
 
             <div className="mt-5 text-lg text-[#fff6d6]">
-              {reading.spread_name || "使用スプレッド"}
+              使用スプレッド名：{reading.spread_name || "未設定"}
             </div>
           </div>
 
@@ -151,14 +277,34 @@ export default function PdfPage() {
               <div className="mb-2 text-sm font-bold text-[#8b5a20]">
                 展開情報
               </div>
-              <div className="space-y-2 text-sm leading-7">
-                <div>使用スプレッド：{reading.spread_name}</div>
-                <div className="break-all">カードコード：{reading.cards}</div>
+
+              <div className="space-y-3 text-sm leading-7">
                 <div>
                   作成日時：
                   {reading.created_at
                     ? new Date(reading.created_at).toLocaleString("ja-JP")
                     : ""}
+                </div>
+
+                <div>
+                  <div className="font-bold text-[#8b5a20]">
+                    展開カード一覧
+                  </div>
+
+                  <div className="mt-2 max-h-[330px] space-y-1 overflow-hidden text-[13px] leading-6">
+                    {cardList.length > 0 ? (
+                      cardList.map((card) => (
+                        <div key={card.position_no}>
+                          {card.position_no}. {card.position_name}：
+                          {card.name_ja}（{card.orientation_ja}）
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-stone-500">
+                        カード一覧を取得できませんでした。
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
