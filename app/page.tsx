@@ -283,6 +283,7 @@ function HomeContent() {
   const [drawnCards, setDrawnCards] = useState<DrawnCard[]>([]);
   const [error, setError] = useState("");
   const [autoLoaded, setAutoLoaded] = useState(false);
+  const [question, setQuestion] = useState("");
   const [readingSummary, setReadingSummary] = useState("");
   const [readingDetail, setReadingDetail] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
@@ -413,7 +414,7 @@ function HomeContent() {
         body: JSON.stringify({
           spread_key: selectedSpreadKey,
           spread_name: selectedSpread?.spread_name ?? "",
-          question: "",
+          question: question,
           cards: cardCodesText.replace(/\s+/g, ""),
           reading_summary: readingSummary,
           reading_detail: readingDetail,
@@ -479,7 +480,7 @@ function HomeContent() {
         body: JSON.stringify({
           spread_key: selectedSpreadKey,
           spread_name: selectedSpread?.spread_name ?? "",
-          question: "",
+          question: question,
           cards: cardCodesText.replace(/\s+/g, ""),
           reading_summary: readingSummary,
           reading_detail: readingDetail,
@@ -648,7 +649,16 @@ function HomeContent() {
         <section className="rounded-2xl bg-white p-4 shadow">
           <h2 className="mb-4 text-xl font-bold">鑑定結果保存</h2>
 
-          <label className="block text-sm font-bold">①〜⑧ 鑑定結果</label>
+          <label className="block text-sm font-bold">相談内容</label>
+
+          <textarea
+            className="mt-2 h-24 w-full rounded-lg border p-3"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="例）相手は私のことをどう思っていますか？"
+          />
+
+          <label className="block text-sm font-bold">鑑定結果</label>
 
           <textarea
             className="mt-2 h-48 w-full rounded-lg border p-3"
