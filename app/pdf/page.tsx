@@ -83,6 +83,22 @@ const rankMap: Record<string, string> = {
   "14": "king",
 };
 
+function cleanDividerLines(text: string) {
+  return text
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .filter((line) => !/^[-─━ー＝=]{5,}$/.test(line.trim()))
+    .join("\n")
+    .trim();
+}
+
+function formatQuestionText(text: string) {
+  return cleanDividerLines(text)
+    .replace(/(?:^|\n)[①②③④⑤⑥⑦⑧⑨]\s*/g, "\n")
+    .replace(/(?:^|\n)(\d+)[\.．、]\s*/g, "\n")
+    .trim();
+}
+
 function parsePdfCardCode(code: string) {
   const trimmed = code.trim();
 
@@ -90,8 +106,7 @@ function parsePdfCardCode(code: string) {
   const num = trimmed.slice(1, 3);
   const orientationCode = trimmed.slice(3, 4);
 
-  const orientation_ja =
-    orientationCode === "0" ? "正位置" : "逆位置";
+  const orientation_ja = orientationCode === "0" ? "正位置" : "逆位置";
 
   if (type === "0") {
     return {
@@ -107,7 +122,7 @@ function parsePdfCardCode(code: string) {
 }
 
 function parseSummarySections(text: string): SummarySection[] {
-  const normalized = text.replace(/\r\n/g, "\n");
+  const normalized = cleanDividerLines(text);
 
   const matches = Array.from(
     normalized.matchAll(
@@ -126,7 +141,6 @@ function parseSummarySections(text: string): SummarySection[] {
 
   return matches.map((match, index) => {
     const start = (match.index ?? 0) + match[0].length;
-
     const end =
       index + 1 < matches.length
         ? matches[index + 1].index ?? normalized.length
@@ -143,12 +157,10 @@ function parseDetailSections(
   text: string,
   cardList: CardListItem[]
 ): DetailSection[] {
-  const normalized = text.replace(/\r\n/g, "\n");
+  const normalized = cleanDividerLines(text);
 
   const matches = Array.from(
-    normalized.matchAll(
-      /(?:^|\n)(\d+)[\.．、\s]+([^\n]+?)\n/g
-    )
+    normalized.matchAll(/(?:^|\n)(\d+)[\.．、\s]+([^\n]+?)\n/g)
   );
 
   if (matches.length === 0) {
@@ -162,18 +174,15 @@ function parseDetailSections(
 
   return matches.map((match, index) => {
     const positionNo = Number(match[1]);
-
     const start = (match.index ?? 0) + match[0].length;
-
     const end =
       index + 1 < matches.length
         ? matches[index + 1].index ?? normalized.length
         : normalized.length;
 
     const card =
-      cardList.find(
-        (item) => item.position_no === positionNo
-      ) ?? cardList[index];
+      cardList.find((item) => item.position_no === positionNo) ??
+      cardList[index];
 
     return {
       card,
@@ -184,39 +193,25 @@ function parseDetailSections(
 }
 
 export default function PdfPage() {
-  const [reading, setReading] =
-    useState<LatestReading | null>(null);
-
-  const [cardList, setCardList] = useState<CardListItem[]>(
-    []
-  );
-
+  const [reading, setReading] = useState<LatestReading | null>(null);
+  const [cardList, setCardList] = useState<CardListItem[]>([]);
   const [error, setError] = useState("");
-
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadReading() {
       try {
-        const response = await fetch(
-          "/api/latest-reading",
-          {
-            cache: "no-store",
-          }
-        );
+        const response = await fetch("/api/latest-reading", {
+          cache: "no-store",
+        });
 
         const result = await response.json();
 
         if (!response.ok) {
-          throw new Error(
-            result.error ??
-              "最新鑑定結果を取得できませんでした。"
-          );
+          throw new Error(result.error ?? "最新鑑定結果を取得できませんでした。");
         }
 
-        const savedReading =
-          result.reading as LatestReading;
-
+        const savedReading = result.reading as LatestReading;
         setReading(savedReading);
 
         const parsedCards = savedReading.cards
@@ -225,36 +220,21 @@ export default function PdfPage() {
           .filter(Boolean)
           .map(parsePdfCardCode);
 
-        const cardKeys = parsedCards.map(
-          (card) => card.card_key
-        );
+        const cardKeys = parsedCards.map((card) => card.card_key);
 
         const { data: cardData } = await supabase
           .from("tarot_cards")
-          .select(
-            "card_key, name_ja, image_url"
-          )
+          .select("card_key, name_ja, image_url")
           .in("card_key", cardKeys);
 
-        const { data: positionData } =
-          await supabase
-            .from("tarot_spread_positions")
-            .select(
-              "position_no, position_name"
-            )
-            .eq(
-              "spread_key",
-              savedReading.spread_key
-            )
-            .order("position_no", {
-              ascending: true,
-            });
+        const { data: positionData } = await supabase
+          .from("tarot_spread_positions")
+          .select("position_no, position_name")
+          .eq("spread_key", savedReading.spread_key)
+          .order("position_no", { ascending: true });
 
         const cardMap = new Map(
-          (cardData ?? []).map((card) => [
-            card.card_key,
-            card,
-          ])
+          (cardData ?? []).map((card) => [card.card_key, card])
         );
 
         const positionMap = new Map(
@@ -264,27 +244,17 @@ export default function PdfPage() {
           ])
         );
 
-        const list = parsedCards.map(
-          (card, index) => {
-            const cardInfo = cardMap.get(
-              card.card_key
-            );
+        const list = parsedCards.map((card, index) => {
+          const cardInfo = cardMap.get(card.card_key);
 
-            return {
-              position_no: index + 1,
-              position_name:
-                positionMap.get(index + 1) ??
-                "",
-              name_ja:
-                cardInfo?.name_ja ??
-                card.card_key,
-              orientation_ja:
-                card.orientation_ja,
-              image_url:
-                cardInfo?.image_url ?? null,
-            };
-          }
-        );
+          return {
+            position_no: index + 1,
+            position_name: positionMap.get(index + 1) ?? "",
+            name_ja: cardInfo?.name_ja ?? card.card_key,
+            orientation_ja: card.orientation_ja,
+            image_url: cardInfo?.image_url ?? null,
+          };
+        });
 
         setCardList(list);
       } catch (e) {
@@ -315,16 +285,11 @@ export default function PdfPage() {
     );
   }
 
-  const summarySections =
-    parseSummarySections(
-      reading.reading_summary ?? ""
-    );
-
-  const detailSections =
-    parseDetailSections(
-      reading.reading_detail ?? "",
-      cardList
-    );
+  const summarySections = parseSummarySections(reading.reading_summary ?? "");
+  const detailSections = parseDetailSections(
+    reading.reading_detail ?? "",
+    cardList
+  );
 
   return (
     <main className="min-h-screen bg-[#120d1f] px-6 py-8 text-[#2c1b10] print:bg-white print:p-0">
@@ -350,6 +315,14 @@ export default function PdfPage() {
             break-inside: avoid;
           }
 
+          .detail-card-page {
+            break-after: page;
+          }
+
+          .detail-card-page:last-child {
+            break-after: auto;
+          }
+
           body {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
@@ -359,13 +332,9 @@ export default function PdfPage() {
 
       <div className="no-print mx-auto mb-6 flex max-w-[900px] items-center justify-between rounded-2xl bg-white/10 p-4 text-white">
         <div>
-          <div className="text-lg font-bold">
-            PDF出力プレビュー
-          </div>
-
+          <div className="text-lg font-bold">PDF出力プレビュー</div>
           <div className="text-sm opacity-80">
-            表示内容を確認して、
-            ブラウザの印刷からPDF保存してください。
+            表示内容を確認して、ブラウザの印刷からPDF保存してください。
           </div>
         </div>
 
@@ -384,13 +353,10 @@ export default function PdfPage() {
               TAROT READING REPORT
             </div>
 
-            <h1 className="mt-4 text-4xl font-bold">
-              タロット鑑定書
-            </h1>
+            <h1 className="mt-4 text-4xl font-bold">タロット鑑定書</h1>
 
             <div className="mt-5 text-lg text-[#fff6d6]">
-              使用スプレッド名：
-              {reading.spread_name}
+              使用スプレッド名：{reading.spread_name}
             </div>
           </div>
 
@@ -401,7 +367,7 @@ export default function PdfPage() {
               </div>
 
               <div className="whitespace-pre-wrap leading-8">
-                {reading.question || "未入力"}
+                {formatQuestionText(reading.question) || "未入力"}
               </div>
             </div>
 
@@ -414,9 +380,7 @@ export default function PdfPage() {
                 <div>
                   作成日時：
                   {reading.created_at
-                    ? new Date(
-                        reading.created_at
-                      ).toLocaleString("ja-JP")
+                    ? new Date(reading.created_at).toLocaleString("ja-JP")
                     : ""}
                 </div>
 
@@ -427,15 +391,9 @@ export default function PdfPage() {
 
                   <div className="mt-2 space-y-1 text-[13px] leading-6">
                     {cardList.map((card) => (
-                      <div
-                        key={card.position_no}
-                      >
-                        {card.position_no}.{" "}
-                        {card.position_name}：
-                        {card.name_ja}
-                        （
-                        {card.orientation_ja}
-                        ）
+                      <div key={card.position_no}>
+                        {card.position_no}. {card.position_name}：
+                        {card.name_ja}（{card.orientation_ja}）
                       </div>
                     ))}
                   </div>
@@ -451,9 +409,7 @@ export default function PdfPage() {
 
             {reading.spread_image_url ? (
               <img
-                src={
-                  reading.spread_image_url
-                }
+                src={reading.spread_image_url}
                 alt="スプレッド展開図"
                 className="mx-auto max-h-[620px] w-full rounded-2xl object-contain"
               />
@@ -471,28 +427,24 @@ export default function PdfPage() {
               OVERALL READING
             </div>
 
-            <h2 className="mt-2 text-3xl font-bold">
-              鑑定結果
-            </h2>
+            <h2 className="mt-2 text-3xl font-bold">鑑定結果</h2>
           </div>
 
           <div className="space-y-6">
-            {summarySections.map(
-              (section, index) => (
-                <div
-                  key={index}
-                  className="avoid-break rounded-2xl border border-[#ead8a6] bg-white/80 p-6"
-                >
-                  <div className="mb-3 text-xl font-bold text-[#8b5a20]">
-                    {section.title}
-                  </div>
-
-                  <div className="whitespace-pre-wrap leading-8">
-                    {section.body}
-                  </div>
+            {summarySections.map((section, index) => (
+              <div
+                key={index}
+                className="avoid-break rounded-2xl border border-[#ead8a6] bg-white/80 p-6"
+              >
+                <div className="mb-3 text-xl font-bold text-[#8b5a20]">
+                  {section.title}
                 </div>
-              )
-            )}
+
+                <div className="whitespace-pre-wrap leading-8">
+                  {section.body}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -502,68 +454,45 @@ export default function PdfPage() {
               CARD DETAILS
             </div>
 
-            <h2 className="mt-2 text-3xl font-bold">
-              各カード詳細診断
-            </h2>
+            <h2 className="mt-2 text-3xl font-bold">各カード詳細診断</h2>
           </div>
 
           <div className="space-y-8">
-            {detailSections.map(
-              (section, index) => (
-                <div
-                  key={index}
-                  className="avoid-break rounded-2xl border border-[#ead8a6] bg-white/80 p-6"
-                >
-                  <div className="grid gap-6 md:grid-cols-[180px_1fr]">
-                    <div>
-                      {section.card
-                        ?.image_url && (
-                        <img
-                          src={
-                            section.card
-                              .image_url
-                          }
-                          alt={
-                            section.card
-                              .name_ja
-                          }
-                          className="mx-auto w-[160px] rounded-xl shadow-lg"
-                        />
-                      )}
+            {detailSections.map((section, index) => (
+              <div
+                key={index}
+                className="detail-card-page rounded-2xl border border-[#ead8a6] bg-white/80 p-7"
+              >
+                <div className="mb-5 flex items-center justify-between border-b border-[#ead8a6] pb-4">
+                  <div>
+                    <div className="text-xl font-bold text-[#8b5a20]">
+                      {section.card?.position_no}.{" "}
+                      {section.card?.position_name}
                     </div>
 
-                    <div>
-                      <div className="text-xl font-bold text-[#8b5a20]">
-                        {section.card
-                          ?.position_no}
-                        .{" "}
-                        {
-                          section.card
-                            ?.position_name
-                        }
-                      </div>
-
-                      <div className="mt-1 text-lg font-bold">
-                        {
-                          section.card
-                            ?.name_ja
-                        }
-                        （
-                        {
-                          section.card
-                            ?.orientation_ja
-                        }
-                        ）
-                      </div>
-
-                      <div className="mt-5 whitespace-pre-wrap leading-8">
-                        {section.body}
-                      </div>
+                    <div className="mt-1 text-lg font-bold">
+                      {section.card?.name_ja}（{section.card?.orientation_ja}）
                     </div>
                   </div>
                 </div>
-              )
-            )}
+
+                <div className="grid gap-6 md:grid-cols-[150px_1fr]">
+                  <div>
+                    {section.card?.image_url && (
+                      <img
+                        src={section.card.image_url}
+                        alt={section.card.name_ja}
+                        className="mx-auto w-[135px] rounded-xl shadow-lg"
+                      />
+                    )}
+                  </div>
+
+                  <div className="whitespace-pre-wrap leading-8">
+                    {section.body}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       </article>
