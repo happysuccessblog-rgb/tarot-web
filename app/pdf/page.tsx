@@ -372,9 +372,9 @@ export default function PdfPage() {
         <section className="print-page relative rounded-[28px] bg-[#fff8e7] p-10 shadow-2xl">
           <div className="absolute left-6 top-5 text-xs text-[#8b5a20]">
             作成日時：
-            {reading.created_at
-              ? new Date(reading.created_at).toLocaleString("ja-JP")
-              : ""}
+            {new Date().toLocaleString("ja-JP", {
+              timeZone: "Asia/Tokyo",
+            })}
           </div>
 
           <div className="mb-8 rounded-[24px] border border-[#d8b15f] bg-[#1b1430] p-8 text-center text-[#f7e7b1]">
