@@ -9,7 +9,7 @@ export async function GET(request: Request) {
 
     const batchKey = searchParams.get("batch_key");
     const limitParam = searchParams.get("limit");
-    const limit = Math.min(Number(limitParam ?? 1), 20);
+    const limit = Math.min(Number(limitParam ?? 1), 5);
 
     if (!batchKey) {
       return NextResponse.json(
@@ -32,7 +32,17 @@ export async function GET(request: Request) {
 
     const { data: jobs, error } = await supabase
       .from("tarot_generation_jobs")
-      .select("*")
+      .select(`
+        job_key,
+        card_name,
+        orientation_name,
+        category_name,
+        topic_name,
+        subtopic_name,
+        timing_name,
+        generated_text,
+        status
+      `)
       .eq("batch_key", batchKey)
       .eq("status", "generated")
       .order("generated_at", { ascending: true })
