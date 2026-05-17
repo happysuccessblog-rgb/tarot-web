@@ -5,11 +5,11 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    const apiKey = request.headers.get("x-api-key");
+// const apiKey = request.headers.get("x-api-key");
 
-    if (apiKey !== process.env.SAVE_READING_API_KEY) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+// if (apiKey !== process.env.SAVE_READING_API_KEY) {
+//   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+// }
 
     const { searchParams } = new URL(request.url);
 

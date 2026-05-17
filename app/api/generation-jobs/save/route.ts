@@ -13,11 +13,11 @@ type SaveGenerationJobBody = {
 
 export async function POST(request: Request) {
   try {
-    const apiKey = request.headers.get("x-api-key");
+// const apiKey = request.headers.get("x-api-key");
 
-    if (apiKey !== process.env.SAVE_READING_API_KEY) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+// if (apiKey !== process.env.SAVE_READING_API_KEY) {
+//   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+// }
 
     const body = (await request.json()) as SaveGenerationJobBody;
 
