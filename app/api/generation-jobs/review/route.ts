@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
     const now = new Date().toISOString();
 
-    let nextStatus = body.action;
+    let nextStatus: string = body.action;
 
     if (body.action === "regenerate") {
       nextStatus = "pending";
