@@ -8,8 +8,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
 
     const batchKey = searchParams.get("batch_key");
-    const limitParam = searchParams.get("limit");
-    const limit = Math.min(Number(limitParam ?? 1), 5);
 
     if (!batchKey) {
       return NextResponse.json(
@@ -30,42 +28,48 @@ export async function GET(request: Request) {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { data: jobs, error } = await supabase
+    const { data: job, error } = await supabase
       .from("tarot_generation_jobs")
-      .select(`
-        job_key,
-        card_name,
-        orientation_name,
-        category_name,
-        topic_name,
-        subtopic_name,
-        timing_name,
-        generated_text,
-        status
-      `)
+      .select(
+        "job_key,card_name,orientation_name,category_name,topic_name,subtopic_name,timing_name,generated_text,status"
+      )
       .eq("batch_key", batchKey)
       .eq("status", "generated")
       .order("generated_at", { ascending: true })
-      .limit(limit);
+      .limit(1)
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json(
-        { error: error.message },
+        { ok: false, error: error.message },
         { status: 500 }
       );
     }
 
+    if (!job) {
+      return NextResponse.json({
+        ok: true,
+        has_job: false,
+        message: "No generated jobs waiting for review",
+      });
+    }
+
     return NextResponse.json({
       ok: true,
-      jobs: jobs ?? [],
-      message:
-        jobs && jobs.length > 0
-          ? "Review jobs returned"
-          : "No generated jobs waiting for review",
+      has_job: true,
+      job_key: job.job_key,
+      card_name: job.card_name,
+      orientation_name: job.orientation_name,
+      category_name: job.category_name,
+      topic_name: job.topic_name,
+      subtopic_name: job.subtopic_name,
+      timing_name: job.timing_name,
+      generated_text: job.generated_text,
+      status: job.status,
     });
   } catch (error) {
     return NextResponse.json(
-      { error: String(error) },
+      { ok: false, error: String(error) },
       { status: 500 }
     );
   }
