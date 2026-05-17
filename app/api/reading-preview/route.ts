@@ -15,6 +15,7 @@ type ReadingPreviewBody = {
   category_key?: string;
   topic_key?: string;
   subtopic_key?: string;
+  spread_key?: string;
   cards?: ReadingPreviewCard[];
 };
 
@@ -125,6 +126,40 @@ export async function POST(request: Request) {
         continue;
       }
 
+      let positionAdjustment: string | null = null;
+
+      if (body.spread_key && item.position_no) {
+        let adjustmentQuery = supabase
+          .from("tarot_spread_position_adjustments")
+          .select("adjustment_text")
+          .eq("spread_key", body.spread_key)
+          .eq("position_no", item.position_no)
+          .eq("category_key", body.category_key)
+          .eq("adjustment_role", "main")
+          .eq("is_active", true);
+
+        if (body.topic_key) {
+          adjustmentQuery = adjustmentQuery.eq("topic_key", body.topic_key);
+        } else {
+          adjustmentQuery = adjustmentQuery.is("topic_key", null);
+        }
+
+        if (body.subtopic_key) {
+          adjustmentQuery = adjustmentQuery.eq(
+            "subtopic_key",
+            body.subtopic_key
+          );
+        } else {
+          adjustmentQuery = adjustmentQuery.is("subtopic_key", null);
+        }
+
+        const { data: adjustmentData } = await adjustmentQuery.maybeSingle();
+
+        if (adjustmentData?.adjustment_text) {
+          positionAdjustment = adjustmentData.adjustment_text;
+        }
+      }
+
       results.push({
         position_no: item.position_no ?? null,
         position_name: item.position_name ?? "",
@@ -137,6 +172,7 @@ export async function POST(request: Request) {
         topic_name: data.topic_name,
         subtopic_name: data.subtopic_name,
         timing_name: data.timing_name,
+        position_adjustment: positionAdjustment,
         interpretation_text: data.interpretation_text,
       });
     }
@@ -146,6 +182,7 @@ export async function POST(request: Request) {
       category_key: body.category_key,
       topic_key: body.topic_key ?? null,
       subtopic_key: body.subtopic_key ?? null,
+      spread_key: body.spread_key ?? null,
       cards: results,
     });
   } catch (error) {
