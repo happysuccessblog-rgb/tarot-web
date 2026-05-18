@@ -63,7 +63,6 @@ export async function POST(request: Request) {
     }
 
     if (body.action === "regenerate") {
-      updatePayload.generated_text = "";
       updatePayload.generated_at = null;
       updatePayload.locked_at = null;
     }
