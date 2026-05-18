@@ -5,11 +5,11 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-// const apiKey = request.headers.get("x-api-key");
+    // const apiKey = request.headers.get("x-api-key");
 
-// if (apiKey !== process.env.SAVE_READING_API_KEY) {
-//   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-// }
+    // if (apiKey !== process.env.SAVE_READING_API_KEY) {
+    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // }
 
     const { searchParams } = new URL(request.url);
 
@@ -39,14 +39,65 @@ export async function GET(request: Request) {
 
     const { data: jobs, error } = await supabase
       .from("tarot_generation_jobs")
-      .select("*")
+      .select(`
+        id,
+        batch_key,
+        job_key,
+        target_table,
+
+        card_key,
+        card_name,
+
+        orientation,
+        orientation_name,
+
+        category_key,
+        category_name,
+
+        topic_key,
+        topic_name,
+
+        subtopic_key,
+        subtopic_name,
+
+        timing_key,
+        timing_name,
+
+        spread_key,
+        spread_name,
+
+        position_no,
+        position_name,
+
+        text_role,
+        length_type,
+        tone_type,
+
+        prompt_context,
+
+        status,
+
+        generated_text,
+        error_message,
+
+        locked_at,
+        generated_at,
+        reviewed_at,
+        approved_at,
+
+        created_at,
+        updated_at
+      `)
       .eq("batch_key", batchKey)
       .eq("status", "pending")
       .order("id", { ascending: true })
       .limit(limit);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
     }
 
     if (!jobs || jobs.length === 0) {
@@ -80,6 +131,9 @@ export async function GET(request: Request) {
       jobs,
     });
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    return NextResponse.json(
+      { error: String(error) },
+      { status: 500 }
+    );
   }
 }

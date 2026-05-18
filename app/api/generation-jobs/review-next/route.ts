@@ -35,7 +35,7 @@ export async function GET(request: Request) {
       )
       .eq("batch_key", batchKey)
       .eq("status", "generated")
-      .order("generated_at", { ascending: true })
+      .order("id", { ascending: true })
       .limit(1)
       .maybeSingle();
 
