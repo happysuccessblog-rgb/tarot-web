@@ -44,7 +44,9 @@ export async function GET(request: Request) {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const base = () => {
-      let q = supabase.from("tarot_generation_jobs_prod");
+      let q = supabase
+        .from("tarot_generation_jobs_prod")
+        .select("*");
 
       if (batchKey) {
         q = q.eq("batch_key", batchKey);
