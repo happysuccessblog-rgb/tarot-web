@@ -8,14 +8,27 @@ function jsonUtf8(data: unknown, status = 200) {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
     },
   });
+}
+
+async function countByQuery(query: any) {
+  const { count, error } = await query.select("id", {
+    count: "exact",
+    head: true,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return count ?? 0;
 }
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-
     const batchKey = searchParams.get("batch_key");
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -30,75 +43,56 @@ export async function GET(request: Request) {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    let query = supabase
-      .from("tarot_generation_jobs_prod")
-      .select("status", { count: "exact" });
+    const base = () => {
+      let q = supabase.from("tarot_generation_jobs_prod");
 
-    if (batchKey) {
-      query = query.eq("batch_key", batchKey);
-    }
+      if (batchKey) {
+        q = q.eq("batch_key", batchKey);
+      }
 
-    const { data, error, count } = await query;
-
-    if (error) {
-      return jsonUtf8({ ok: false, error: error.message }, 500);
-    }
-
-    const stats: Record<string, number> = {
-      total_jobs: count ?? 0,
-      pending: 0,
-      processing: 0,
-      generated: 0,
-      approved: 0,
-      reviewed: 0,
-      skipped: 0,
-      error: 0,
-      waiting_meaning: 0,
+      return q;
     };
 
-    for (const row of data ?? []) {
-      const status = row.status ?? "error";
+    const [
+      totalJobs,
+      pending,
+      processing,
+      generated,
+      approved,
+      reviewed,
+      skipped,
+      errorCount,
+      waitingMeaning,
+    ] = await Promise.all([
+      countByQuery(base()),
+      countByQuery(base().eq("status", "pending")),
+      countByQuery(base().eq("status", "processing")),
+      countByQuery(base().eq("status", "generated")),
+      countByQuery(base().eq("status", "approved")),
+      countByQuery(base().eq("status", "reviewed")),
+      countByQuery(base().eq("status", "skipped")),
+      countByQuery(base().eq("status", "error")),
+      countByQuery(base().eq("status", "waiting_meaning")),
+    ]);
 
-      if (status in stats) {
-        stats[status]++;
-      } else {
-        stats.error++;
-      }
-    }
-
-    const completed =
-      stats.generated +
-      stats.approved +
-      stats.reviewed +
-      stats.skipped;
-
-    const completionRate =
-      stats.total_jobs > 0
-        ? Number(((completed / stats.total_jobs) * 100).toFixed(2))
-        : 0;
-
-    const approvalRate =
-      stats.total_jobs > 0
-        ? Number(((stats.approved / stats.total_jobs) * 100).toFixed(2))
-        : 0;
+    const completed = generated + approved + reviewed + skipped;
 
     return jsonUtf8({
       ok: true,
       batch_key: batchKey ?? "all",
-
-      total_jobs: stats.total_jobs,
-
-      pending: stats.pending,
-      processing: stats.processing,
-      generated: stats.generated,
-      approved: stats.approved,
-      reviewed: stats.reviewed,
-      skipped: stats.skipped,
-      error: stats.error,
-      waiting_meaning: stats.waiting_meaning,
-
-      completion_rate: completionRate,
-      approval_rate: approvalRate,
+      total_jobs: totalJobs,
+      pending,
+      processing,
+      generated,
+      approved,
+      reviewed,
+      skipped,
+      error: errorCount,
+      waiting_meaning: waitingMeaning,
+      completion_rate:
+        totalJobs > 0 ? Number(((completed / totalJobs) * 100).toFixed(2)) : 0,
+      approval_rate:
+        totalJobs > 0 ? Number(((approved / totalJobs) * 100).toFixed(2)) : 0,
     });
   } catch (error) {
     return jsonUtf8({ ok: false, error: String(error) }, 500);
