@@ -46,7 +46,7 @@ export async function GET(request: Request) {
       .select("*")
       .eq("status", "pending")
       .order("id", { ascending: true })
-      .limit(limit);
+      .limit(limit * 5);
 
     if (batchKey) {
       query = query.eq("batch_key", batchKey);
@@ -73,6 +73,7 @@ export async function GET(request: Request) {
     }
 
     const enrichedJobs = [];
+    const validJobKeys: string[] = [];
 
     for (const job of jobs) {
       const { data: baseMeaning } = await supabase
@@ -90,16 +91,41 @@ export async function GET(request: Request) {
         .eq("is_active", true)
         .maybeSingle();
 
+      // meaning未登録は生成対象外
+      if (!baseMeaning || !orientationMeaning) {
+        await supabase
+          .from("tarot_generation_jobs_prod")
+          .update({
+            status: "waiting_meaning",
+            error_message:
+              "base_meaning または orientation_meaning 未登録",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("job_key", job.job_key);
+
+        continue;
+      }
+
       enrichedJobs.push({
         ...job,
-        base_meaning: baseMeaning ?? null,
-        orientation_meaning: orientationMeaning ?? null,
+        base_meaning: baseMeaning,
+        orientation_meaning: orientationMeaning,
       });
+
+      validJobKeys.push(job.job_key);
+
+      if (enrichedJobs.length >= limit) {
+        break;
+      }
     }
 
-    const jobKeys = jobs.map(
-      (job) => job.job_key
-    );
+    if (enrichedJobs.length === 0) {
+      return jsonUtf8({
+        ok: true,
+        jobs: [],
+        message: "No jobs with completed meanings",
+      });
+    }
 
     const { error: lockError } = await supabase
       .from("tarot_generation_jobs_prod")
@@ -108,7 +134,7 @@ export async function GET(request: Request) {
         locked_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .in("job_key", jobKeys);
+      .in("job_key", validJobKeys);
 
     if (lockError) {
       return jsonUtf8(
