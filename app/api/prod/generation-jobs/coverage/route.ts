@@ -13,11 +13,27 @@ function jsonUtf8(data: unknown, status = 200) {
   });
 }
 
-async function countByQuery(query: any) {
-  const { count, error } = await query.select("id", {
-    count: "exact",
-    head: true,
-  });
+async function countJobs(
+  supabase: ReturnType<typeof createClient>,
+  batchKey: string | null,
+  status?: string
+) {
+  let query = supabase
+    .from("tarot_generation_jobs_prod")
+    .select("*", {
+      count: "exact",
+      head: true,
+    });
+
+  if (batchKey) {
+    query = query.eq("batch_key", batchKey);
+  }
+
+  if (status) {
+    query = query.eq("status", status);
+  }
+
+  const { count, error } = await query;
 
   if (error) {
     throw new Error(error.message);
@@ -43,39 +59,19 @@ export async function GET(request: Request) {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const base = () => {
-      let q = supabase
-        .from("tarot_generation_jobs_prod")
-        .select("*");
-
-      if (batchKey) {
-        q = q.eq("batch_key", batchKey);
-      }
-
-      return q;
-    };
-
-    const [
-      totalJobs,
-      pending,
-      processing,
-      generated,
-      approved,
-      reviewed,
-      skipped,
-      errorCount,
-      waitingMeaning,
-    ] = await Promise.all([
-      countByQuery(base()),
-      countByQuery(base().eq("status", "pending")),
-      countByQuery(base().eq("status", "processing")),
-      countByQuery(base().eq("status", "generated")),
-      countByQuery(base().eq("status", "approved")),
-      countByQuery(base().eq("status", "reviewed")),
-      countByQuery(base().eq("status", "skipped")),
-      countByQuery(base().eq("status", "error")),
-      countByQuery(base().eq("status", "waiting_meaning")),
-    ]);
+    const totalJobs = await countJobs(supabase, batchKey);
+    const pending = await countJobs(supabase, batchKey, "pending");
+    const processing = await countJobs(supabase, batchKey, "processing");
+    const generated = await countJobs(supabase, batchKey, "generated");
+    const approved = await countJobs(supabase, batchKey, "approved");
+    const reviewed = await countJobs(supabase, batchKey, "reviewed");
+    const skipped = await countJobs(supabase, batchKey, "skipped");
+    const errorCount = await countJobs(supabase, batchKey, "error");
+    const waitingMeaning = await countJobs(
+      supabase,
+      batchKey,
+      "waiting_meaning"
+    );
 
     const completed = generated + approved + reviewed + skipped;
 
