@@ -14,7 +14,7 @@ function jsonUtf8(data: unknown, status = 200) {
 }
 
 async function countJobs(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   batchKey: string | null,
   status?: string
 ) {
