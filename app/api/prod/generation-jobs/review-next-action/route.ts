@@ -70,7 +70,7 @@ export async function GET() {
 
     const { data: baseMeaning, error: baseError } = await supabase
       .from("tarot_card_base_meanings_prod")
-      .select(`core_meaning, ${field}, psychology, advice`)
+      .select(`core_meaning, ${field}`)
       .eq("card_key", job.card_key)
       .eq("is_active", true)
       .maybeSingle();
@@ -81,7 +81,7 @@ export async function GET() {
 
     const { data: orientationMeaning, error: orientationError } = await supabase
       .from("tarot_card_orientation_meanings_prod")
-      .select(`core_meaning, ${field}, psychology, shadow_side, advice`)
+      .select(`core_meaning, ${field}, shadow_side`)
       .eq("card_key", job.card_key)
       .eq("orientation", job.orientation)
       .eq("is_active", true)
@@ -98,17 +98,21 @@ export async function GET() {
       ok: true,
       jobs: [
         {
-          ...job,
+          id: job.id,
+          job_key: job.job_key,
+          card_name: job.card_name,
+          orientation_name: job.orientation_name,
+          category_name: job.category_name,
+          topic_name: job.topic_name,
+          subtopic_name: job.subtopic_name,
+          timing_name: job.timing_name,
+          generated_text: job.generated_text,
           review_basis: {
             base_core: baseAny?.core_meaning ?? "",
             base_category: baseAny?.[field] ?? "",
-            base_psychology: baseAny?.psychology ?? "",
-            base_advice: baseAny?.advice ?? "",
             orientation_core: orientationAny?.core_meaning ?? "",
             orientation_category: orientationAny?.[field] ?? "",
-            orientation_psychology: orientationAny?.psychology ?? "",
             orientation_shadow: orientationAny?.shadow_side ?? "",
-            orientation_advice: orientationAny?.advice ?? "",
           },
         },
       ],
