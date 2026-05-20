@@ -68,14 +68,18 @@ export async function GET() {
 
     const field = categoryField(job.category_key);
 
-    const { data: baseMeaning } = await supabase
+    const { data: baseMeaning, error: baseError } = await supabase
       .from("tarot_card_base_meanings_prod")
       .select(`core_meaning, ${field}, psychology, advice`)
       .eq("card_key", job.card_key)
       .eq("is_active", true)
       .maybeSingle();
 
-    const { data: orientationMeaning } = await supabase
+    if (baseError) {
+      return jsonUtf8({ ok: false, error: baseError.message }, 500);
+    }
+
+    const { data: orientationMeaning, error: orientationError } = await supabase
       .from("tarot_card_orientation_meanings_prod")
       .select(`core_meaning, ${field}, psychology, shadow_side, advice`)
       .eq("card_key", job.card_key)
@@ -83,21 +87,28 @@ export async function GET() {
       .eq("is_active", true)
       .maybeSingle();
 
+    if (orientationError) {
+      return jsonUtf8({ ok: false, error: orientationError.message }, 500);
+    }
+
+    const baseAny = baseMeaning as any;
+    const orientationAny = orientationMeaning as any;
+
     return jsonUtf8({
       ok: true,
       jobs: [
         {
           ...job,
           review_basis: {
-            base_core: baseMeaning?.core_meaning ?? "",
-            base_category: baseMeaning?.[field] ?? "",
-            base_psychology: baseMeaning?.psychology ?? "",
-            base_advice: baseMeaning?.advice ?? "",
-            orientation_core: orientationMeaning?.core_meaning ?? "",
-            orientation_category: orientationMeaning?.[field] ?? "",
-            orientation_psychology: orientationMeaning?.psychology ?? "",
-            orientation_shadow: orientationMeaning?.shadow_side ?? "",
-            orientation_advice: orientationMeaning?.advice ?? "",
+            base_core: baseAny?.core_meaning ?? "",
+            base_category: baseAny?.[field] ?? "",
+            base_psychology: baseAny?.psychology ?? "",
+            base_advice: baseAny?.advice ?? "",
+            orientation_core: orientationAny?.core_meaning ?? "",
+            orientation_category: orientationAny?.[field] ?? "",
+            orientation_psychology: orientationAny?.psychology ?? "",
+            orientation_shadow: orientationAny?.shadow_side ?? "",
+            orientation_advice: orientationAny?.advice ?? "",
           },
         },
       ],
