@@ -27,7 +27,10 @@ export async function GET(request: Request) {
 
     if (!supabaseUrl || !serviceRoleKey) {
       return jsonUtf8(
-        { ok: false, error: "Supabase environment variables are missing" },
+        {
+          ok: false,
+          error: "Supabase environment variables are missing",
+        },
         500
       );
     }
@@ -48,7 +51,13 @@ export async function GET(request: Request) {
     const { data: jobs, error } = await query;
 
     if (error) {
-      return jsonUtf8({ ok: false, error: error.message }, 500);
+      return jsonUtf8(
+        {
+          ok: false,
+          error: error.message,
+        },
+        500
+      );
     }
 
     if (!jobs || jobs.length === 0) {
@@ -59,11 +68,63 @@ export async function GET(request: Request) {
       });
     }
 
+    const enrichedJobs = [];
+
+    for (const job of jobs) {
+      const { data: baseMeaning, error: baseError } = await supabase
+        .from("tarot_card_base_meanings_prod")
+        .select("*")
+        .eq("card_key", job.card_key)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (baseError) {
+        return jsonUtf8(
+          {
+            ok: false,
+            error: baseError.message,
+          },
+          500
+        );
+      }
+
+      const { data: orientationMeaning, error: orientationError } =
+        await supabase
+          .from("tarot_card_orientation_meanings_prod")
+          .select("*")
+          .eq("card_key", job.card_key)
+          .eq("orientation", job.orientation)
+          .eq("is_active", true)
+          .maybeSingle();
+
+      if (orientationError) {
+        return jsonUtf8(
+          {
+            ok: false,
+            error: orientationError.message,
+          },
+          500
+        );
+      }
+
+      enrichedJobs.push({
+        ...job,
+        base_meaning: baseMeaning ?? null,
+        orientation_meaning: orientationMeaning ?? null,
+      });
+    }
+
     return jsonUtf8({
       ok: true,
-      jobs,
+      jobs: enrichedJobs,
     });
   } catch (error) {
-    return jsonUtf8({ ok: false, error: String(error) }, 500);
+    return jsonUtf8(
+      {
+        ok: false,
+        error: String(error),
+      },
+      500
+    );
   }
 }
