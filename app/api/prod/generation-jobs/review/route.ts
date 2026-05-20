@@ -17,6 +17,7 @@ function jsonUtf8(data: unknown, status = 200) {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
     },
   });
 }
@@ -65,6 +66,17 @@ export async function POST(request: Request) {
       );
     }
 
+    const defaultReviewNote =
+      body.action === "approved"
+        ? "自然な文章量でテーマに一致。カードの意味と正逆も反映されているため承認。"
+        : body.action === "reviewed"
+          ? "大きな問題はないが、手動微調整の余地あり。"
+          : "再生成が必要。";
+
+    const reviewNote = body.review_note?.trim()
+      ? body.review_note
+      : defaultReviewNote;
+
     let nextStatus: ReviewAction | "pending" = body.action;
 
     if (body.action === "regenerate") {
@@ -75,7 +87,7 @@ export async function POST(request: Request) {
       status: nextStatus,
       reviewed_at: now,
       updated_at: now,
-      error_message: body.review_note ?? "",
+      error_message: reviewNote,
     };
 
     if (body.action === "approved") {
@@ -120,6 +132,7 @@ export async function POST(request: Request) {
       job_key: job.job_key,
       action: body.action,
       status: nextStatus,
+      review_note: reviewNote,
     });
   } catch (error) {
     return jsonUtf8({ ok: false, error: String(error) }, 500);

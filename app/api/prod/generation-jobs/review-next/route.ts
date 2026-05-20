@@ -8,6 +8,7 @@ function jsonUtf8(data: unknown, status = 200) {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
     },
   });
 }
@@ -17,8 +18,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
 
     const batchKey = searchParams.get("batch_key");
-    const limitParam = searchParams.get("limit");
-    const limit = Math.min(Number(limitParam ?? 1), 10);
+
+    // GPTが limit=10 を送っても必ず1件だけ返す
+    const limit = 1;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
