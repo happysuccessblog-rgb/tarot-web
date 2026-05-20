@@ -4,15 +4,13 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 function jsonUtf8(data: unknown, status = 200) {
-  return new NextResponse(
-    JSON.stringify(data),
-    {
-      status,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-      },
-    }
-  );
+  return new NextResponse(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
 }
 
 export async function GET(request: Request) {
@@ -20,8 +18,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
 
     const batchKey = searchParams.get("batch_key");
-    const limitParam = searchParams.get("limit");
-    const limit = Math.min(Number(limitParam ?? 1), 10);
+
+    // 重要：
+    // GPTが limit=10 を送っても、必ず1件だけ取得・ロックする
+    const limit = 1;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -36,17 +36,14 @@ export async function GET(request: Request) {
       );
     }
 
-    const supabase = createClient(
-      supabaseUrl,
-      serviceRoleKey
-    );
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     let query = supabase
       .from("tarot_generation_jobs_prod")
       .select("*")
       .eq("status", "pending")
       .order("id", { ascending: true })
-      .limit(limit * 5);
+      .limit(20);
 
     if (batchKey) {
       query = query.eq("batch_key", batchKey);
@@ -76,29 +73,49 @@ export async function GET(request: Request) {
     const validJobKeys: string[] = [];
 
     for (const job of jobs) {
-      const { data: baseMeaning } = await supabase
+      const { data: baseMeaning, error: baseError } = await supabase
         .from("tarot_card_base_meanings_prod")
         .select("*")
         .eq("card_key", job.card_key)
         .eq("is_active", true)
         .maybeSingle();
 
-      const { data: orientationMeaning } = await supabase
-        .from("tarot_card_orientation_meanings_prod")
-        .select("*")
-        .eq("card_key", job.card_key)
-        .eq("orientation", job.orientation)
-        .eq("is_active", true)
-        .maybeSingle();
+      if (baseError) {
+        return jsonUtf8(
+          {
+            ok: false,
+            error: baseError.message,
+          },
+          500
+        );
+      }
 
-      // meaning未登録は生成対象外
+      const { data: orientationMeaning, error: orientationError } =
+        await supabase
+          .from("tarot_card_orientation_meanings_prod")
+          .select("*")
+          .eq("card_key", job.card_key)
+          .eq("orientation", job.orientation)
+          .eq("is_active", true)
+          .maybeSingle();
+
+      if (orientationError) {
+        return jsonUtf8(
+          {
+            ok: false,
+            error: orientationError.message,
+          },
+          500
+        );
+      }
+
       if (!baseMeaning || !orientationMeaning) {
         await supabase
           .from("tarot_generation_jobs_prod")
           .update({
             status: "waiting_meaning",
-            error_message:
-              "base_meaning または orientation_meaning 未登録",
+            locked_at: null,
+            error_message: "base_meaning または orientation_meaning 未登録",
             updated_at: new Date().toISOString(),
           })
           .eq("job_key", job.job_key);
@@ -150,7 +167,6 @@ export async function GET(request: Request) {
       ok: true,
       jobs: enrichedJobs,
     });
-
   } catch (error) {
     return jsonUtf8(
       {
