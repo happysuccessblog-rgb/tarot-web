@@ -67,25 +67,53 @@ export async function GET(request: Request) {
     const results = [];
 
     for (const card of cards ?? []) {
-      const { data: adjustments, error: adjustmentError } = await supabase
-        .from("tarot_spread_position_adjustments_prod")
-        .select(`
-          adjustment_role,
-          adjustment_text
-        `)
-        .eq("spread_key", reading.spread_key)
-        .eq("position_no", card.position_no)
-        .eq("category_key", reading.category_key)
-        .eq("topic_key", reading.topic_key)
-        .eq("subtopic_key", reading.subtopic_key)
-        .eq("is_active", true);
+            const usageType = reading.usage_type ?? "default";
 
-      if (adjustmentError) {
-        return jsonUtf8(
-          { ok: false, error: adjustmentError.message },
-          500
-        );
-      }
+            let { data: adjustments, error: adjustmentError } = await supabase
+              .from("tarot_spread_position_adjustments_prod")
+              .select(`
+                adjustment_role,
+                adjustment_text
+              `)
+              .eq("spread_key", reading.spread_key)
+              .eq("usage_type", usageType)
+              .eq("position_no", card.position_no)
+              .eq("category_key", reading.category_key)
+              .eq("topic_key", reading.topic_key)
+              .eq("subtopic_key", reading.subtopic_key)
+              .eq("is_active", true);
+
+            if (adjustmentError) {
+              return jsonUtf8(
+                { ok: false, error: adjustmentError.message },
+                500
+              );
+            }
+
+            if ((!adjustments || adjustments.length === 0) && usageType !== "default") {
+              const fallback = await supabase
+                .from("tarot_spread_position_adjustments_prod")
+                .select(`
+                  adjustment_role,
+                  adjustment_text
+                `)
+                .eq("spread_key", reading.spread_key)
+                .eq("usage_type", "default")
+                .eq("position_no", card.position_no)
+                .eq("category_key", reading.category_key)
+                .eq("topic_key", reading.topic_key)
+                .eq("subtopic_key", reading.subtopic_key)
+                .eq("is_active", true);
+
+              if (fallback.error) {
+                return jsonUtf8(
+                  { ok: false, error: fallback.error.message },
+                  500
+                );
+              }
+
+              adjustments = fallback.data ?? [];
+            }
 
       results.push({
         position_no: card.position_no,
@@ -111,6 +139,8 @@ export async function GET(request: Request) {
 
         spread_key: reading.spread_key,
         spread_name: reading.spread_name,
+
+        usage_type: reading.usage_type ?? "default",
 
         category_key: reading.category_key,
         category_name: reading.category_name,

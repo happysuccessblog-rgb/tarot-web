@@ -8,6 +8,7 @@ type CreateReadingBody = {
   topic_key?: string;
   subtopic_key?: string;
   spread_key?: string;
+  usage_type?: string;
   question_text?: string;
   user_id?: string;
   session_id?: string;
@@ -181,6 +182,8 @@ export async function POST(request: Request) {
 
         spread_key: spread.spread_key,
         spread_name: spread.spread_name,
+
+        usage_type: body.usage_type ?? "default",
 
         question_text: body.question_text ?? "",
 
