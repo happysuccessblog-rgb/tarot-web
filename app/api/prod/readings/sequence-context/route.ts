@@ -320,73 +320,6 @@ async function loadPositionNameMap(params: {
   );
 }
 
-async function findSequenceMeaning(params: {
-  supabase: any;
-  reading: any;
-  flowType: string;
-}) {
-  const { supabase, reading, flowType } = params;
-
-  const selectColumns = `
-    sequence_key,
-    spread_key,
-    category_key,
-    topic_key,
-    subtopic_key,
-    flow_type,
-    flow_keywords,
-    sequence_meaning_short,
-    sequence_meaning_long,
-    advice_text
-  `;
-
-  const exact = await supabase
-    .from("tarot_card_sequence_meanings_prod")
-    .select(selectColumns)
-    .eq("spread_key", reading.spread_key)
-    .eq("category_key", reading.category_key)
-    .eq("topic_key", reading.topic_key)
-    .eq("subtopic_key", reading.subtopic_key)
-    .eq("flow_type", flowType)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (exact.error) throw new Error(exact.error.message);
-  if (exact.data) return exact.data;
-
-  const topic = await supabase
-    .from("tarot_card_sequence_meanings_prod")
-    .select(selectColumns)
-    .eq("spread_key", reading.spread_key)
-    .eq("category_key", reading.category_key)
-    .eq("topic_key", reading.topic_key)
-    .is("subtopic_key", null)
-    .eq("flow_type", flowType)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (topic.error) throw new Error(topic.error.message);
-  if (topic.data) return topic.data;
-
-  const category = await supabase
-    .from("tarot_card_sequence_meanings_prod")
-    .select(selectColumns)
-    .eq("spread_key", reading.spread_key)
-    .eq("category_key", reading.category_key)
-    .is("topic_key", null)
-    .is("subtopic_key", null)
-    .eq("flow_type", flowType)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (category.error) throw new Error(category.error.message);
-
-  return category.data ?? null;
-}
-
 async function findPairFlowPattern(params: {
   supabase: any;
   reading: any;
@@ -454,97 +387,91 @@ async function findPairFlowPattern(params: {
   return generic.data ?? null;
 }
 
-async function findPairMeaning(params: {
+async function findSequenceMeaning(params: {
   supabase: any;
   reading: any;
-  first: any;
-  second: any;
-}) {
-  const { supabase, reading, first, second } = params;
-
-  const { data, error } = await supabase
-    .from("tarot_card_pair_meanings_prod")
-    .select(`
-      pair_keywords,
-      pair_meaning_short,
-      pair_meaning_long,
-      synergy_score
-    `)
-    .eq("card_key_1", first.card_key)
-    .eq("orientation_1", first.orientation)
-    .eq("card_key_2", second.card_key)
-    .eq("orientation_2", second.orientation)
-    .eq("category_key", reading.category_key)
-    .eq("topic_key", reading.topic_key)
-    .eq("subtopic_key", reading.subtopic_key)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (error) throw new Error(error.message);
-
-  return data ?? null;
-}
-
-async function findStoryPatterns(params: {
-  supabase: any;
-  reading: any;
-  flowType: string | null;
+  flowType: string;
 }) {
   const { supabase, reading, flowType } = params;
 
-  const selectColumns = `
-    pattern_key,
-    pattern_name,
-    pattern_keywords,
-    opening_text,
-    middle_text,
-    closing_text,
-    summary_text,
-    advice_text,
-    emotional_tone,
-    score_min,
-    score_max,
-    sort_order
-  `;
-
-  let exactQuery = supabase
-    .from("tarot_spread_story_patterns_prod")
-    .select(selectColumns)
+  const exactSequence = await supabase
+    .from("tarot_card_sequence_meanings_prod")
+    .select(`
+      sequence_key,
+      spread_key,
+      category_key,
+      topic_key,
+      subtopic_key,
+      flow_type,
+      flow_keywords,
+      sequence_meaning_short,
+      sequence_meaning_long,
+      advice_text
+    `)
     .eq("spread_key", reading.spread_key)
     .eq("category_key", reading.category_key)
     .eq("topic_key", reading.topic_key)
     .eq("subtopic_key", reading.subtopic_key)
+    .eq("flow_type", flowType)
     .eq("is_active", true)
-    .order("sort_order", { ascending: true });
+    .limit(1)
+    .maybeSingle();
 
-  if (flowType) {
-    exactQuery = exactQuery.ilike("pattern_key", `%${flowType}%`);
-  }
+  if (exactSequence.error) throw new Error(exactSequence.error.message);
+  if (exactSequence.data) return exactSequence.data;
 
-  const exact = await exactQuery;
+  const topicSequence = await supabase
+    .from("tarot_card_sequence_meanings_prod")
+    .select(`
+      sequence_key,
+      spread_key,
+      category_key,
+      topic_key,
+      subtopic_key,
+      flow_type,
+      flow_keywords,
+      sequence_meaning_short,
+      sequence_meaning_long,
+      advice_text
+    `)
+    .eq("spread_key", reading.spread_key)
+    .eq("category_key", reading.category_key)
+    .eq("topic_key", reading.topic_key)
+    .is("subtopic_key", null)
+    .eq("flow_type", flowType)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
 
-  if (exact.error) throw new Error(exact.error.message);
-  if ((exact.data ?? []).length > 0) return exact.data ?? [];
+  if (topicSequence.error) throw new Error(topicSequence.error.message);
+  if (topicSequence.data) return topicSequence.data;
 
-  let categoryQuery = supabase
-    .from("tarot_spread_story_patterns_prod")
-    .select(selectColumns)
+  const categorySequence = await supabase
+    .from("tarot_card_sequence_meanings_prod")
+    .select(`
+      sequence_key,
+      spread_key,
+      category_key,
+      topic_key,
+      subtopic_key,
+      flow_type,
+      flow_keywords,
+      sequence_meaning_short,
+      sequence_meaning_long,
+      advice_text
+    `)
     .eq("spread_key", reading.spread_key)
     .eq("category_key", reading.category_key)
     .is("topic_key", null)
     .is("subtopic_key", null)
+    .eq("flow_type", flowType)
     .eq("is_active", true)
-    .order("sort_order", { ascending: true });
+    .limit(1)
+    .maybeSingle();
 
-  if (flowType) {
-    categoryQuery = categoryQuery.ilike("pattern_key", `%${flowType}%`);
-  }
+  if (categorySequence.error) throw new Error(categorySequence.error.message);
 
-  const category = await categoryQuery;
-
-  if (category.error) throw new Error(category.error.message);
-
-  return category.data ?? [];
+  return categorySequence.data ?? null;
 }
 
 export async function GET(request: Request) {
@@ -629,7 +556,7 @@ export async function GET(request: Request) {
     const cardsWithScores = readingCards.map((card) => {
       const master = masterMap.get(card.card_key) as any;
 
-      const energyScore =
+      const score =
         card.orientation === "upright"
           ? master?.energy_score_upright ?? 0
           : master?.energy_score_reversed ?? 0;
@@ -646,7 +573,7 @@ export async function GET(request: Request) {
         card_name: card.card_name,
         orientation: card.orientation,
         orientation_name: card.orientation_name,
-        energy_score: energyScore,
+        energy_score: score,
         flow_tags: master?.flow_tags ?? [],
       };
     });
@@ -704,7 +631,10 @@ export async function GET(request: Request) {
 
             if (!fromCard || !toCard) return null;
 
-            return { fromCard, toCard };
+            return {
+              fromCard,
+              toCard,
+            };
           })
           .filter(
             (
@@ -719,117 +649,53 @@ export async function GET(request: Request) {
           toCard: cardsWithScores[index + 1],
         }));
 
-    const pairContexts = [];
-    const pairFlowContexts = [];
+    const pairFlows = [];
 
-    for (const pair of pairCardPairs) {
-      const { fromCard, toCard } = pair;
+    if (flowType) {
+      for (const pair of pairCardPairs) {
+        const { fromCard, toCard } = pair;
 
-      const pairMeaning = await findPairMeaning({
-        supabase,
-        reading,
-        first: fromCard,
-        second: toCard,
-      });
+        const pairFlowPattern = await findPairFlowPattern({
+          supabase,
+          reading,
+          fromScore: fromCard.energy_score,
+          toScore: toCard.energy_score,
+        });
 
-      const pairFlowPattern = flowType
-        ? await findPairFlowPattern({
-            supabase,
-            reading,
-            fromScore: fromCard.energy_score,
-            toScore: toCard.energy_score,
-          })
-        : null;
+        pairFlows.push({
+          from_position_no: fromCard.position_no,
+          from_position_name: fromCard.position_name,
+          from_card_name: fromCard.card_name,
+          from_orientation_name: fromCard.orientation_name,
+          from_score: fromCard.energy_score,
 
-      pairContexts.push({
-        from_position_no: fromCard.position_no,
-        from_position_name: fromCard.position_name,
-        from_card_name: fromCard.card_name,
-        from_orientation_name: fromCard.orientation_name,
+          to_position_no: toCard.position_no,
+          to_position_name: toCard.position_name,
+          to_card_name: toCard.card_name,
+          to_orientation_name: toCard.orientation_name,
+          to_score: toCard.energy_score,
 
-        to_position_no: toCard.position_no,
-        to_position_name: toCard.position_name,
-        to_card_name: toCard.card_name,
-        to_orientation_name: toCard.orientation_name,
-
-        pair_meaning: pairMeaning,
-      });
-
-      pairFlowContexts.push({
-        from_position_no: fromCard.position_no,
-        from_position_name: fromCard.position_name,
-        from_card_name: fromCard.card_name,
-        from_orientation_name: fromCard.orientation_name,
-        from_score: fromCard.energy_score,
-
-        to_position_no: toCard.position_no,
-        to_position_name: toCard.position_name,
-        to_card_name: toCard.card_name,
-        to_orientation_name: toCard.orientation_name,
-        to_score: toCard.energy_score,
-
-        pair_flow_pattern: pairFlowPattern,
-      });
+          pair_flow_pattern: pairFlowPattern,
+        });
+      }
     }
-
-    const storyPatterns = await findStoryPatterns({
-      supabase,
-      reading,
-      flowType,
-    });
-
-    const sequenceContext = {
-      scores,
-      flow_type: flowType,
-      cards: cardsWithScores,
-      flow_target_positions: targetPositions,
-      pair_flow_position_pairs: pairPositionPairs,
-      sequence_meaning: sequenceMeaning ?? null,
-      pair_flows: pairFlowContexts,
-    };
 
     return jsonUtf8({
       ok: true,
-      reading: {
-        reading_key: reading.reading_key,
-
-        category_key: reading.category_key,
-        category_name: reading.category_name,
-
-        topic_key: reading.topic_key,
-        topic_name: reading.topic_name,
-
-        subtopic_key: reading.subtopic_key,
-        subtopic_name: reading.subtopic_name,
-
-        spread_key: reading.spread_key,
-        spread_name: reading.spread_name,
-
-        usage_type: usageType,
-
-        question_text: reading.question_text,
-      },
-
-      cards: readingCards.map((card) => {
-        const positionName =
-          positionNameMap.get(Number(card.position_no)) ??
-          card.position_name ??
-          `ポジション${card.position_no}`;
-
-        return {
-          position_no: card.position_no,
-          position_name: positionName,
-          card_name: card.card_name,
-          orientation_name: card.orientation_name,
-          interpretation_text: card.interpretation_text,
-          position_adjusted_text: card.position_adjusted_text,
-        };
-      }),
-
-      sequence_context: sequenceContext,
-      pair_contexts: pairContexts,
-      pair_flow_contexts: pairFlowContexts,
-      story_patterns: storyPatterns,
+      reading_key: readingKey,
+      spread_key: reading.spread_key,
+      spread_name: reading.spread_name,
+      usage_type: usageType,
+      category_key: reading.category_key,
+      topic_key: reading.topic_key,
+      subtopic_key: reading.subtopic_key,
+      cards: cardsWithScores,
+      flow_target_positions: targetPositions,
+      flow_scores: scores,
+      flow_type: flowType,
+      sequence_meaning: sequenceMeaning ?? null,
+      pair_flow_position_pairs: pairPositionPairs,
+      pair_flows: pairFlows,
     });
   } catch (error) {
     return jsonUtf8({ ok: false, error: String(error) }, 500);
