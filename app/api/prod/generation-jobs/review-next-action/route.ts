@@ -68,6 +68,7 @@ export async function GET() {
         generated_text
       `)
       .eq("status", "generated")
+      .order("priority", { ascending: true })
       .order("id", { ascending: true })
       .limit(1)
       .maybeSingle();
