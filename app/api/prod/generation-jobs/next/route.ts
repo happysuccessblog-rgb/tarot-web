@@ -42,6 +42,7 @@ export async function GET(request: Request) {
       .from("tarot_generation_jobs_prod")
       .select("*")
       .eq("status", "pending")
+      .order("priority", { ascending: true })
       .order("id", { ascending: true })
       .limit(20);
 
