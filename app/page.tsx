@@ -765,7 +765,8 @@ function HomeContent() {
                 labelPos = getTreeOfLifeLabelPosition(pos.position_no);
               }
 
-              if (selectedSpreadKey === "horoscope") {
+              if (selectedSpreadKey === "horoscope" ||
+                selectedSpreadKey === "horoscope_house") {
                 labelPos = getHoroscopeLabelPosition(pos.position_no);
               }
 
