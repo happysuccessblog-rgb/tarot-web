@@ -38,15 +38,33 @@ export async function GET() {
       .select(`
         id,
         job_key,
+
         card_key,
         card_name,
         orientation,
         orientation_name,
+
         category_key,
         category_name,
+
+        topic_key,
         topic_name,
+
+        subtopic_key,
         subtopic_name,
+
+        timing_key,
         timing_name,
+
+        spread_key,
+        spread_name,
+
+        position_no,
+        position_name,
+        position_description,
+
+        text_role,
+
         generated_text
       `)
       .eq("status", "generated")
@@ -100,13 +118,33 @@ export async function GET() {
         {
           id: job.id,
           job_key: job.job_key,
+
           card_name: job.card_name,
           orientation_name: job.orientation_name,
+
+          category_key: job.category_key,
           category_name: job.category_name,
+
+          topic_key: job.topic_key,
           topic_name: job.topic_name,
+
+          subtopic_key: job.subtopic_key,
           subtopic_name: job.subtopic_name,
+
+          timing_key: job.timing_key,
           timing_name: job.timing_name,
+
+          spread_key: job.spread_key,
+          spread_name: job.spread_name,
+
+          position_no: job.position_no,
+          position_name: job.position_name,
+          position_description: job.position_description,
+
+          text_role: job.text_role,
+
           generated_text: job.generated_text,
+
           review_basis: {
             base_core: baseAny?.core_meaning ?? "",
             base_category: baseAny?.[field] ?? "",
