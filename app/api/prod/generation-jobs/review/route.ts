@@ -28,18 +28,16 @@ export async function POST(request: Request) {
 
     const {
       job_key,
-      generated_review_score
+      generated_review_score,
+      review_comment
     } = body;
 
-    // --------------------------------------------------
-    // ① 必須チェック
-    // --------------------------------------------------
     if (!job_key) {
       return json({ ok: false, error: "job_key missing" }, 400);
     }
 
     // --------------------------------------------------
-    // ② ジョブ取得
+    // ① job取得
     // --------------------------------------------------
     const { data: job, error: fetchError } = await supabase
       .from("tarot_generation_jobs_prod")
@@ -51,9 +49,6 @@ export async function POST(request: Request) {
       return json({ ok: false, error: "Job not found", detail: fetchError }, 404);
     }
 
-    // --------------------------------------------------
-    // ③ 対象テキスト
-    // --------------------------------------------------
     const targetText = job.generated_text;
 
     if (!targetText) {
@@ -61,7 +56,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // ④ スコア決定
+    // ② スコア判定
     // --------------------------------------------------
     const score =
       generated_review_score ??
@@ -69,8 +64,10 @@ export async function POST(request: Request) {
 
     const isApproved = score >= 85;
 
+    const now = new Date().toISOString();
+
     // --------------------------------------------------
-    // ⑤ interpretation保存
+    // ③ interpretation保存（常に保存）
     // --------------------------------------------------
     const { data: inserted, error: insertError } = await supabase
       .from("tarot_interpretation_texts_prod")
@@ -81,8 +78,9 @@ export async function POST(request: Request) {
         generated_review_score: score,
         is_reviewed: true,
         is_approved: isApproved,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        approved_message: isApproved ? review_comment ?? null : null,
+        created_at: now,
+        updated_at: now,
       })
       .select()
       .single();
@@ -92,14 +90,20 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // ⑥ jobs更新（最小構成のみ）
+    // ④ jobs更新（分岐あり）
     // --------------------------------------------------
+    const jobUpdate: any = {
+      status: isApproved ? "approved" : "reviewed",
+      updated_at: now,
+    };
+
+    if (!isApproved) {
+      jobUpdate.error_message = review_comment ?? null;
+    }
+
     const { error: updateError } = await supabase
       .from("tarot_generation_jobs_prod")
-      .update({
-        status: isApproved ? "approved" : "reviewed",
-        updated_at: new Date().toISOString(),
-      })
+      .update(jobUpdate)
       .eq("job_key", job_key);
 
     if (updateError) {
@@ -107,13 +111,14 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // ⑦ レスポンス
+    // ⑤ response
     // --------------------------------------------------
     return json({
       ok: true,
       job_key,
       score,
-      status: isApproved ? "approved" : "reviewed",
+      status: jobUpdate.status,
+      approved: isApproved,
       inserted
     });
 
