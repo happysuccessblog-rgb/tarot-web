@@ -33,6 +33,9 @@ export async function GET() {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    // --------------------------------------------------
+    // ① ジョブ取得（修正済み）
+    // --------------------------------------------------
     const { data: job, error: jobError } = await supabase
       .from("tarot_generation_jobs_prod")
       .select(`
@@ -49,12 +52,6 @@ export async function GET() {
 
         topic_key,
         topic_name,
-
-        subtopic_key,
-        subtopic_name,
-
-        timing_key,
-        timing_name,
 
         spread_key,
         spread_name,
@@ -85,6 +82,9 @@ export async function GET() {
       });
     }
 
+    // --------------------------------------------------
+    // ② 意味データ取得（そのままOK）
+    // --------------------------------------------------
     const field = categoryField(job.category_key);
 
     const { data: baseMeaning, error: baseError } = await supabase
@@ -113,6 +113,9 @@ export async function GET() {
     const baseAny = baseMeaning as any;
     const orientationAny = orientationMeaning as any;
 
+    // --------------------------------------------------
+    // ③ レスポンス（修正済み）
+    // --------------------------------------------------
     return jsonUtf8({
       ok: true,
       jobs: [
@@ -128,12 +131,6 @@ export async function GET() {
 
           topic_key: job.topic_key,
           topic_name: job.topic_name,
-
-          subtopic_key: job.subtopic_key,
-          subtopic_name: job.subtopic_name,
-
-          timing_key: job.timing_key,
-          timing_name: job.timing_name,
 
           spread_key: job.spread_key,
           spread_name: job.spread_name,
@@ -156,6 +153,7 @@ export async function GET() {
         },
       ],
     });
+
   } catch (error) {
     return jsonUtf8({ ok: false, error: String(error) }, 500);
   }
