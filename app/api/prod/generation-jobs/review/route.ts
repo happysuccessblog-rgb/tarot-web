@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     // ⑤ interpretation保存
     // --------------------------------------------------
     const { data: inserted, error: insertError } = await supabase
-      .from("tarit_interpretation_texts_prod")
+      .from("tarot_interpretation_texts_prod")
       .insert({
         source_job_key: job.job_key,
         output_type: "generated",
