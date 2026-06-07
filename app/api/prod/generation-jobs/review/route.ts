@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     const now = new Date().toISOString();
 
     // --------------------------------------------------
-    // ③ interpretation保存（常に保存）
+    // ③ interpretation保存（OK）
     // --------------------------------------------------
     const { data: inserted, error: insertError } = await supabase
       .from("tarot_interpretation_texts_prod")
@@ -90,14 +90,19 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // ④ jobs更新（分岐あり）
+    // ④ jobs更新（★ここが今回の修正ポイント）
     // --------------------------------------------------
     const jobUpdate: any = {
       status: isApproved ? "approved" : "reviewed",
       updated_at: now,
     };
 
-    if (!isApproved) {
+    // ★追加：timestamp制御
+    jobUpdate.reviewed_at = now;
+
+    if (isApproved) {
+      jobUpdate.approved_at = now;
+    } else {
       jobUpdate.error_message = review_comment ?? null;
     }
 
