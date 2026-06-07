@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     } = body;
 
     // --------------------------------------------------
-    // ① 必須チェック
+    // ① validation
     // --------------------------------------------------
     if (!job_key || !output_text) {
       return json(
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // ② ジョブ取得（存在確認のみ）
+    // ② job確認
     // --------------------------------------------------
     const { data: job, error: fetchError } = await supabase
       .from("tarot_generation_jobs_prod")
@@ -60,17 +60,22 @@ export async function POST(request: Request) {
       );
     }
 
+    const now = new Date().toISOString();
+
     // --------------------------------------------------
-    // ③ 更新データ（完全最小構成）
+    // ③ 更新データ（修正ポイント）
     // --------------------------------------------------
     const updatePayload: any = {
       generated_text: output_text,
       status: "generated",
-      updated_at: new Date().toISOString(),
+      updated_at: now,
+
+      // ★追加（重要）
+      generated_at: now
     };
 
     // --------------------------------------------------
-    // ⑤ DB更新
+    // ④ DB更新
     // --------------------------------------------------
     const { data: updated, error: updateError } = await supabase
       .from("tarot_generation_jobs_prod")
@@ -87,7 +92,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // ⑥ レスポンス
+    // ⑤ response
     // --------------------------------------------------
     return json({
       ok: true,
