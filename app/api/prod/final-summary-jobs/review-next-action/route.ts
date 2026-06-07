@@ -13,31 +13,25 @@ function jsonUtf8(data: unknown, status = 200) {
   });
 }
 
-function categoryField(categoryKey: string | null) {
-  if (categoryKey === "love") return "love_meaning";
-  if (categoryKey === "work") return "work_meaning";
-  if (categoryKey === "money") return "money_meaning";
-  if (categoryKey === "relationship") return "relationship_meaning";
-  if (categoryKey === "health") return "health_meaning";
-  return "core_meaning";
-}
-
 export async function GET() {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !serviceRoleKey) {
-      return jsonUtf8({ ok: false, error: "Supabase env missing" }, 500);
+      return jsonUtf8(
+        { ok: false, error: "Supabase env missing" },
+        500
+      );
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     // --------------------------------------------------
-    // ① ジョブ取得（修正済み）
+    // ① final_summaryジョブ取得（レビュー対象）
     // --------------------------------------------------
     const { data: job, error: jobError } = await supabase
-      .from("tarot_generation_jobs_prod")
+      .from("tarot_final_summary_jobs_prod")
       .select(`
         id,
         job_key,
@@ -50,19 +44,12 @@ export async function GET() {
         category_key,
         category_name,
 
-        topic_key,
-        topic_name,
-
         spread_key,
         spread_name,
 
-        position_no,
-        position_name,
-        position_description,
+        position_role,
 
-        text_role,
-
-        generated_text
+        final_summary_text
       `)
       .eq("status", "generated")
       .order("priority", { ascending: true })
@@ -71,50 +58,55 @@ export async function GET() {
       .maybeSingle();
 
     if (jobError) {
-      return jsonUtf8({ ok: false, error: jobError.message }, 500);
+      return jsonUtf8(
+        { ok: false, error: jobError.message },
+        500
+      );
     }
 
     if (!job) {
       return jsonUtf8({
         ok: true,
         jobs: [],
-        message: "No generated prod jobs for review",
+        message: "No final_summary jobs for review",
       });
     }
 
     // --------------------------------------------------
-    // ② 意味データ取得（そのままOK）
+    // ② レビュー基準データ取得（共通マスタ流用）
     // --------------------------------------------------
-    const field = categoryField(job.category_key);
-
     const { data: baseMeaning, error: baseError } = await supabase
       .from("tarot_card_base_meanings_prod")
-      .select(`core_meaning, ${field}`)
+      .select("*")
       .eq("card_key", job.card_key)
       .eq("is_active", true)
       .maybeSingle();
 
     if (baseError) {
-      return jsonUtf8({ ok: false, error: baseError.message }, 500);
+      return jsonUtf8(
+        { ok: false, error: baseError.message },
+        500
+      );
     }
 
-    const { data: orientationMeaning, error: orientationError } = await supabase
-      .from("tarot_card_orientation_meanings_prod")
-      .select(`core_meaning, ${field}, shadow_side`)
-      .eq("card_key", job.card_key)
-      .eq("orientation", job.orientation)
-      .eq("is_active", true)
-      .maybeSingle();
+    const { data: orientationMeaning, error: orientationError } =
+      await supabase
+        .from("tarot_card_orientation_meanings_prod")
+        .select("*")
+        .eq("card_key", job.card_key)
+        .eq("orientation", job.orientation)
+        .eq("is_active", true)
+        .maybeSingle();
 
     if (orientationError) {
-      return jsonUtf8({ ok: false, error: orientationError.message }, 500);
+      return jsonUtf8(
+        { ok: false, error: orientationError.message },
+        500
+      );
     }
 
-    const baseAny = baseMeaning as any;
-    const orientationAny = orientationMeaning as any;
-
     // --------------------------------------------------
-    // ③ レスポンス（修正済み）
+    // ③ レスポンス整形（final_summary用）
     // --------------------------------------------------
     return jsonUtf8({
       ok: true,
@@ -129,32 +121,25 @@ export async function GET() {
           category_key: job.category_key,
           category_name: job.category_name,
 
-          topic_key: job.topic_key,
-          topic_name: job.topic_name,
-
           spread_key: job.spread_key,
           spread_name: job.spread_name,
 
-          position_no: job.position_no,
-          position_name: job.position_name,
-          position_description: job.position_description,
+          position_role: job.position_role,
 
-          text_role: job.text_role,
-
-          generated_text: job.generated_text,
+          final_summary_text: job.final_summary_text,
 
           review_basis: {
-            base_core: baseAny?.core_meaning ?? "",
-            base_category: baseAny?.[field] ?? "",
-            orientation_core: orientationAny?.core_meaning ?? "",
-            orientation_category: orientationAny?.[field] ?? "",
-            orientation_shadow: orientationAny?.shadow_side ?? "",
-          },
-        },
-      ],
+            base_meaning: baseMeaning ?? {},
+            orientation_meaning: orientationMeaning ?? {}
+          }
+        }
+      ]
     });
 
   } catch (error) {
-    return jsonUtf8({ ok: false, error: String(error) }, 500);
+    return jsonUtf8(
+      { ok: false, error: String(error) },
+      500
+    );
   }
 }

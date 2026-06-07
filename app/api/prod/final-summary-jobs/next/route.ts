@@ -19,8 +19,7 @@ export async function GET(request: Request) {
 
     const batchKey = searchParams.get("batch_key");
 
-    // 重要：
-    // GPTが limit=10 を送っても、必ず1件だけ取得・ロックする
+    // final_summaryも1件ずつ処理
     const limit = 1;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -38,11 +37,13 @@ export async function GET(request: Request) {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    // --------------------------------------------------
+    // ① final_summary専用ジョブ取得
+    // --------------------------------------------------
     let query = supabase
-      .from("tarot_generation_jobs_prod")
+      .from("tarot_final_summary_jobs_prod")
       .select("*")
       .eq("status", "pending")
-      .order("priority", { ascending: true })
       .order("id", { ascending: true })
       .limit(20);
 
@@ -66,13 +67,17 @@ export async function GET(request: Request) {
       return jsonUtf8({
         ok: true,
         jobs: [],
-        message: "No pending prod jobs",
+        message: "No pending final_summary jobs",
       });
     }
 
     const enrichedJobs = [];
     const validJobKeys: string[] = [];
 
+    // --------------------------------------------------
+    // ② meaning取得（final_summary用）
+    //    ※ generationと同じテーブルを流用
+    // --------------------------------------------------
     for (const job of jobs) {
       const { data: baseMeaning, error: baseError } = await supabase
         .from("tarot_card_base_meanings_prod")
@@ -110,13 +115,17 @@ export async function GET(request: Request) {
         );
       }
 
+      // --------------------------------------------------
+      // ③ 必須チェック
+      // --------------------------------------------------
       if (!baseMeaning || !orientationMeaning) {
         await supabase
-          .from("tarot_generation_jobs_prod")
+          .from("tarot_final_summary_jobs_prod")
           .update({
             status: "waiting_meaning",
             locked_at: null,
-            error_message: "base_meaning または orientation_meaning 未登録",
+            error_message:
+              "base_meaning または orientation_meaning 未登録",
             updated_at: new Date().toISOString(),
           })
           .eq("job_key", job.job_key);
@@ -124,6 +133,9 @@ export async function GET(request: Request) {
         continue;
       }
 
+      // --------------------------------------------------
+      // ④ job拡張
+      // --------------------------------------------------
       enrichedJobs.push({
         ...job,
         base_meaning: baseMeaning,
@@ -132,21 +144,22 @@ export async function GET(request: Request) {
 
       validJobKeys.push(job.job_key);
 
-      if (enrichedJobs.length >= limit) {
-        break;
-      }
+      if (enrichedJobs.length >= limit) break;
     }
 
     if (enrichedJobs.length === 0) {
       return jsonUtf8({
         ok: true,
         jobs: [],
-        message: "No jobs with completed meanings",
+        message: "No final_summary jobs with meanings",
       });
     }
 
+    // --------------------------------------------------
+    // ⑤ ロック処理
+    // --------------------------------------------------
     const { error: lockError } = await supabase
-      .from("tarot_generation_jobs_prod")
+      .from("tarot_final_summary_jobs_prod")
       .update({
         status: "processing",
         locked_at: new Date().toISOString(),
@@ -164,10 +177,15 @@ export async function GET(request: Request) {
       );
     }
 
+    // --------------------------------------------------
+    // ⑥ レスポンス
+    // --------------------------------------------------
     return jsonUtf8({
       ok: true,
       jobs: enrichedJobs,
+      job_type: "final_summary",
     });
+
   } catch (error) {
     return jsonUtf8(
       {
