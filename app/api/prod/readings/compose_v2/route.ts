@@ -677,16 +677,16 @@ async function loadCardMasterForBalance(params: {
 
   if (error) throw new Error(error.message);
 
-  return new Map(
+  return new Map<string, CardMasterForBalance>(
     (data ?? []).map((row: any) => [
-      row.card_key,
+      String(row.card_key),
       {
         card_id: row.card_id,
-        card_key: row.card_key,
         card_name: row.card_name,
         arcana_type: row.arcana_type,
         suit: row.suit,
         number: row.number,
+        is_active: row.is_active,
       },
     ])
   );
@@ -713,15 +713,15 @@ async function loadCardStatesForBalance(params: {
 
   if (error) throw new Error(error.message);
 
-  return new Map(
+  return new Map<string, CardStateForBalance>(
     (data ?? []).map((row: any) => [
-      `${row.card_key}:${row.state_type}`,
+      `${String(row.card_key)}:${String(row.state_type)}`,
       {
         card_id: row.card_id,
-        card_key: row.card_key,
         state_type: row.state_type,
         intensity_base: row.intensity_base ?? 0,
         class_key: row.class_key ?? null,
+        is_active: row.is_active,
       },
     ])
   );
