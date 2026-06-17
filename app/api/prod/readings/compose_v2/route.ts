@@ -1416,7 +1416,7 @@ export async function POST(request: Request) {
         .map((role) =>
           cardsWithRoles.find((card) => card.position_role === role)
         )
-        .filter((card): card is CardWithScore => Boolean(card));
+        .filter(Boolean) as CardWithScore[];
 
       flowType =
         sorted.length === 3
