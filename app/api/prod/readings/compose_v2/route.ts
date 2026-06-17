@@ -237,7 +237,7 @@ async function loadPositionRoleMap(params: {
 
   if (error) throw new Error(error.message);
 
-  return new Map(
+  return new Map<number, any>(
     (data ?? []).map((row: any) => [
       Number(row.position_no),
       {
