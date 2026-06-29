@@ -20,6 +20,13 @@ function joinBlocks(blocks: Array<string | null | undefined>) {
     .join("\n\n");
 }
 
+function buildFlowBlock(title: string, text: string | null | undefined) {
+  const value = (text ?? "").trim();
+  if (!value) return null;
+
+  return `■ ${title}\n${value}`;
+}
+
 function normalizeFallbackText(
   text: string | null | undefined,
   positionName: string | null | undefined
@@ -511,6 +518,7 @@ async function buildTimelinePairFlows(params: {
 
       emotion_flow_type: emotionFlowType,
       intensity_level: intensityLevel,
+      flow_score: pattern?.flow_score ?? 0,
       topic_flow_weight: topicFlowWeight,
       pair_flow_pattern: pattern,
     });
@@ -652,7 +660,7 @@ function buildCelticInnerPairNarrative(celticInnerPairReading: any | null) {
 
   if (!text) return [];
 
-  return [`■ 潜在意識と顕在意識の関係\n${text}`];
+  return [`■ 表面と内面の関係\n${text}`];
 }
 
 async function loadCardMasterForBalance(params: {
@@ -1355,6 +1363,25 @@ export async function POST(request: Request) {
       return joinBlocks([title, bodyText]);
     });
 
+    const cardBlockMap = new Map<number, string>();
+
+    normalizedReadingCards.forEach((card) => {
+      const title =
+        `■ ${card.position_name}\n${card.card_name}｜${card.orientation_name}`;
+
+      const bodyText =
+        card.position_adjusted_text ||
+        normalizeFallbackText(
+          card.interpretation_text,
+          card.position_name
+        );
+
+      cardBlockMap.set(
+        Number(card.position_no),
+        joinBlocks([title, bodyText])
+      );
+    });
+
     const cardKeys = normalizedReadingCards.map((card) => card.card_key);
 
     const { data: cardMasters, error: masterError } = await supabase
@@ -1447,6 +1474,12 @@ export async function POST(request: Request) {
     let celticInnerPairReading: any | null = null;
     let celticInnerPairBlocks: string[] = [];
 
+    let flowPastPresent = "";
+    let flowPresentFuture = "";
+    let celticPairText = "";
+
+    let totalFlowScore = 0;
+
     if (flowType) {
       sequenceMeaning = await findSequenceMeaning({
         supabase,
@@ -1474,6 +1507,18 @@ export async function POST(request: Request) {
 
         flowNarrativeBlocks =
           buildTimelinePairFlowNarrative(timelinePairFlows);
+
+        flowPastPresent =
+          timelinePairFlows[0]?.pair_flow_pattern?.pair_meaning_long ?? "";
+
+        flowPresentFuture =
+          timelinePairFlows[1]?.pair_flow_pattern?.pair_meaning_long ?? "";
+
+        totalFlowScore =
+          timelinePairFlows.reduce(
+            (sum, flow) => sum + (flow.flow_score ?? 0),
+            0
+          );
       }
 
       if (reading.spread_key === "celtic_cross") {
@@ -1485,6 +1530,9 @@ export async function POST(request: Request) {
 
         celticInnerPairBlocks =
           buildCelticInnerPairNarrative(celticInnerPairReading);
+
+        celticPairText =
+          celticInnerPairReading?.reading_text ?? "";
       }
     }
 
@@ -1512,7 +1560,18 @@ export async function POST(request: Request) {
       cards: cardsForBalance,
     });
 
-    const title = `■ ${reading.topic_name ?? reading.category_name}`;
+    const spreadScore =
+      Number(spreadBalanceEvaluation?.spread_score ?? 0);
+
+    const consultationText = joinBlocks([
+      `カテゴリ：${reading.category_name ?? ""}`,
+      `トピック：${reading.topic_name ?? ""}`,
+      reading.question_text
+        ? `相談したいこと：${reading.question_text}`
+        : null,
+    ]);
+
+    const consultationBlock = `■ 相談内容\n${consultationText}`;
 
     const shouldShowMiddleText =
       Boolean(storyPattern?.middle_text) &&
@@ -1524,13 +1583,13 @@ export async function POST(request: Request) {
 
     const overallText = joinBlocks([
       storyPattern?.opening_text,
-      ...flowNarrativeBlocks,
-      ...celticInnerPairBlocks,
-      ...spreadBalanceEvaluation.summary_blocks,
       sequenceMeaning?.sequence_meaning_long,
       shouldShowMiddleText ? storyPattern?.middle_text : null,
       shouldShowClosingText ? storyPattern?.closing_text : null,
     ]);
+
+    const finalOverallText =
+      overallText || storyPattern?.summary_text || sequenceMeaning?.sequence_meaning_short || "";
 
     const summaryText =
       storyPattern?.summary_text ||
@@ -1542,14 +1601,109 @@ export async function POST(request: Request) {
       sequenceMeaning?.advice_text ||
       "";
 
-    const finalReadingText = joinBlocks([
-      title,
-      ...cardBlocks,
-      "■ 全体鑑定",
-      overallText,
-      summaryText ? `■ まとめ\n${summaryText}` : null,
-      adviceText ? `■ アドバイス\n${adviceText}` : null,
-    ]);
+    let finalReadingText = "";
+
+    if (reading.spread_key === "three_card") {
+      finalReadingText = joinBlocks([
+        consultationBlock,
+        
+        ...spreadBalanceEvaluation.summary_blocks,
+
+        "■ 流れの変化",
+
+        cardBlockMap.get(1),
+        cardBlockMap.get(2),
+
+        buildFlowBlock("過去→現在の流れ", flowPastPresent),
+
+        cardBlockMap.get(3),
+
+        buildFlowBlock("現在→未来の流れ", flowPresentFuture),
+
+        finalOverallText ? `■ 全体鑑定\n${finalOverallText}` : null,
+
+        summaryText
+          ? `■ まとめ\n${summaryText}`
+          : null,
+
+        adviceText
+          ? `■ アドバイス\n${adviceText}`
+          : null,
+      ]);
+    }
+
+    if (reading.spread_key === "celtic_cross") {
+      finalReadingText = joinBlocks([
+        consultationBlock,
+        
+        ...spreadBalanceEvaluation.summary_blocks,
+
+        "■ 流れの変化",
+
+        cardBlockMap.get(5),
+        cardBlockMap.get(1),
+
+        buildFlowBlock("過去→現在の流れ", flowPastPresent),
+
+        cardBlockMap.get(6),
+
+        buildFlowBlock("現在→未来の流れ", flowPresentFuture),
+
+        "■ 表面と内面の意識",
+
+        cardBlockMap.get(4),
+        cardBlockMap.get(3),
+
+        buildFlowBlock(
+          "潜在意識と顕在意識の関係",
+          celticPairText
+        ),
+
+        "■ 組み合わせ①",
+
+        cardBlockMap.get(7),
+        cardBlockMap.get(8),
+
+        "■ 組み合わせ②",
+
+        cardBlockMap.get(9),
+        cardBlockMap.get(2),
+        cardBlockMap.get(10),
+
+        finalOverallText ? `■ 全体鑑定\n${finalOverallText}` : null,
+
+        summaryText
+          ? `■ まとめ\n${summaryText}`
+          : null,
+
+        adviceText
+          ? `■ アドバイス\n${adviceText}`
+          : null,
+      ]);
+    }
+
+    if (reading.spread_key === "horoscope") {
+      finalReadingText = joinBlocks([
+        consultationBlock,
+        
+        ...spreadBalanceEvaluation.summary_blocks,
+
+        "■ ハウス別運勢",
+
+        ...cardBlocks,
+
+        finalOverallText ? `■ 全体鑑定\n${finalOverallText}` : null,
+
+        summaryText
+          ? `■ まとめ\n${summaryText}`
+          : null,
+
+        adviceText
+          ? `■ アドバイス\n${adviceText}`
+          : null,
+      ]);
+    }
+
 
     const now = new Date().toISOString();
 
@@ -1559,6 +1713,8 @@ export async function POST(request: Request) {
         final_reading_text: finalReadingText,
         summary_text: summaryText,
         advice_text: adviceText,
+        flow_score: totalFlowScore,
+        spread_score: spreadScore,
         status: "completed",
         updated_at: now,
       })
